@@ -1,13 +1,18 @@
 "use client"
-import { Download, FileText } from "lucide-react"
+import { Download, Share2 } from "lucide-react"
 
 const Invoice = ({ orderData, vendor, checkout }) => {
   const generateInvoiceText = () => {
     const invoiceDate = new Date(orderData.timestamp).toLocaleDateString()
     const invoiceNumber = `INV-${orderData.id}`
 
+    let itemsText = ""
+    orderData.items.forEach((item) => {
+      itemsText += `${item.name} x ${item.quantity} @ KSH ${item.price.toLocaleString()} = KSH ${item.total.toLocaleString()}\n`
+    })
+
     return `
-INVOICE
+🧾 INVOICE
 
 Invoice #: ${invoiceNumber}
 Date: ${invoiceDate}
@@ -24,16 +29,16 @@ Phone: ${orderData.phone}
 ${orderData.email ? `Email: ${orderData.email}` : ""}
 
 ITEMS:
-${checkout.productName} x ${orderData.quantity}
-Unit Price: KSH ${checkout.price.toLocaleString()}
-Total: KSH ${orderData.totalAmount.toLocaleString()}
+${itemsText}
+TOTAL: KSH ${orderData.totalAmount.toLocaleString()}
 
 PAYMENT:
 Method: ${orderData.method.toUpperCase()}
 Transaction ID: ${orderData.transactionId}
-Status: PAID
+Status: ✅ PAID
 
-Thank you for your business!
+Thank you for your business! 🙏
+Powered by LipaChap ⚡
     `.trim()
   }
 
@@ -55,13 +60,12 @@ Thank you for your business!
 
     if (navigator.share) {
       navigator.share({
-        title: `Invoice - ${checkout.productName}`,
+        title: `Invoice - ${checkout.title}`,
         text: invoiceText,
       })
     } else {
-      // Fallback: copy to clipboard
       navigator.clipboard.writeText(invoiceText).then(() => {
-        alert("Invoice copied to clipboard!")
+        alert("Invoice copied to clipboard! 📋")
       })
     }
   }
@@ -70,17 +74,17 @@ Thank you for your business!
     <div className="space-y-3">
       <button
         onClick={downloadInvoice}
-        className="w-full bg-gray-100 text-gray-700 py-2 px-4 rounded-lg font-medium hover:bg-gray-200 transition-colors flex items-center justify-center"
+        className="w-full bg-gradient-to-r from-gray-100 to-gray-200 text-gray-700 py-3 px-4 rounded-xl font-bold hover:from-gray-200 hover:to-gray-300 transition-all duration-300 flex items-center justify-center shadow-lg transform hover:scale-105"
       >
-        <Download className="w-4 h-4 mr-2" />
+        <Download className="w-5 h-5 mr-2" />
         Download Invoice
       </button>
 
       <button
         onClick={shareInvoice}
-        className="w-full bg-blue-100 text-blue-700 py-2 px-4 rounded-lg font-medium hover:bg-blue-200 transition-colors flex items-center justify-center"
+        className="w-full bg-gradient-to-r from-blue-100 to-purple-200 text-blue-700 py-3 px-4 rounded-xl font-bold hover:from-blue-200 hover:to-purple-300 transition-all duration-300 flex items-center justify-center shadow-lg transform hover:scale-105"
       >
-        <FileText className="w-4 h-4 mr-2" />
+        <Share2 className="w-5 h-5 mr-2" />
         Share Invoice
       </button>
     </div>
