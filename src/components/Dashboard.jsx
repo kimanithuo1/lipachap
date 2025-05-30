@@ -2,13 +2,30 @@
 
 import { useState } from "react"
 import { useParams, Link } from "react-router-dom"
-import { Plus, QrCode, Copy, Eye, Calendar, Package, TrendingUp, Star, Zap, Trash2 } from "lucide-react"
+import {
+  Plus,
+  QrCode,
+  Copy,
+  Eye,
+  Package,
+  TrendingUp,
+  DollarSign,
+  Users,
+  ArrowUpRight,
+  ArrowDownRight,
+  Settings,
+  Bell,
+  Filter,
+  Trash2,
+} from "lucide-react"
 import QRGenerator from "./QRGenerator"
 
 const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
   const { vendorId } = useParams()
   const [showCreateForm, setShowCreateForm] = useState(false)
   const [showQR, setShowQR] = useState(null)
+  const [copiedId, setCopiedId] = useState(null)
+  const [dateFilter, setDateFilter] = useState("7days") // today, 7days, 30days, all
   const [newCheckout, setNewCheckout] = useState({
     title: "",
     description: "",
@@ -35,11 +52,69 @@ const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
     return <div>Vendor not found</div>
   }
 
-  const totalOrders = vendorCheckouts.reduce((sum, checkout) => sum + (checkout.orders?.length || 0), 0)
-  const totalRevenue = vendorCheckouts.reduce(
-    (sum, checkout) => sum + (checkout.orders?.reduce((orderSum, order) => orderSum + order.totalAmount, 0) || 0),
-    0,
-  )
+  // Calculate metrics based on date filter
+  const getFilteredData = () => {
+    const now = new Date()
+    let startDate = new Date()
+
+    switch (dateFilter) {
+      case "today":
+        startDate.setHours(0, 0, 0, 0)
+        break
+      case "7days":
+        startDate.setDate(now.getDate() - 7)
+        break
+      case "30days":
+        startDate.setDate(now.getDate() - 30)
+        break
+      default:
+        startDate = new Date(0) // All time
+    }
+
+    const filteredCheckouts = vendorCheckouts.filter((checkout) => {
+      const checkoutDate = new Date(checkout.createdAt)
+      return checkoutDate >= startDate
+    })
+
+    const filteredOrders = vendorCheckouts.flatMap((checkout) =>
+      (checkout.orders || []).filter((order) => {
+        const orderDate = new Date(order.timestamp)
+        return orderDate >= startDate
+      }),
+    )
+
+    return { filteredCheckouts, filteredOrders }
+  }
+
+  const { filteredCheckouts, filteredOrders } = getFilteredData()
+
+  const totalOrders = filteredOrders.length
+  const totalRevenue = filteredOrders.reduce((sum, order) => sum + order.totalAmount, 0)
+  const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
+
+  // Mock growth data (in real app, compare with previous period)
+  const metrics = {
+    checkouts: {
+      value: filteredCheckouts.length,
+      growth: 12.5,
+      isPositive: true,
+    },
+    orders: {
+      value: totalOrders,
+      growth: 8.3,
+      isPositive: true,
+    },
+    revenue: {
+      value: totalRevenue,
+      growth: 15.2,
+      isPositive: true,
+    },
+    averageOrder: {
+      value: averageOrderValue,
+      growth: -2.1,
+      isPositive: false,
+    },
+  }
 
   const handleCreateCheckout = (e) => {
     e.preventDefault()
@@ -53,9 +128,14 @@ const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
     setShowCreateForm(false)
   }
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text)
-    alert("Link copied to clipboard! 📋")
+  const copyToClipboard = async (text, id) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedId(id)
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch (err) {
+      console.error("Failed to copy: ", err)
+    }
   }
 
   const addItem = () => {
@@ -97,115 +177,225 @@ const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
     }
   }
 
+  const getDateFilterLabel = () => {
+    switch (dateFilter) {
+      case "today":
+        return "Today"
+      case "7days":
+        return "Last 7 Days"
+      case "30days":
+        return "Last 30 Days"
+      default:
+        return "All Time"
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-violet-100 via-purple-50 to-pink-100 p-4">
-      <div className="max-w-6xl mx-auto">
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 mb-8 border border-white/20">
-          <div className="flex items-center justify-between mb-6">
-            <div className="flex items-center">
-              {vendor.logo && (
-                <div className="relative">
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+          <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex items-center mb-6 lg:mb-0">
+              <div className="relative">
+                {vendor.logo ? (
                   <img
                     src={vendor.logo || "/placeholder.svg"}
                     alt={vendor.businessName}
-                    className="w-20 h-20 rounded-full object-cover mr-6 border-4 border-purple-200 shadow-lg"
+                    className="w-16 h-16 rounded-lg object-cover border-2 border-gray-200"
                   />
-                  <div className="absolute -top-2 -right-2 w-8 h-8 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
-                    <Star className="w-4 h-4 text-white" />
+                ) : (
+                  <div className="w-16 h-16 rounded-lg bg-blue-600 flex items-center justify-center">
+                    <span className="text-white font-bold text-xl">{vendor.businessName.charAt(0)}</span>
                   </div>
-                </div>
-              )}
-              <div>
-                <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                  {vendor.businessName}
-                </h1>
-                <p className="text-gray-600 text-lg">{vendor.ownerName}</p>
-                <div className="flex items-center mt-2 text-sm text-gray-500">
-                  <Zap className="w-4 h-4 mr-1 text-yellow-500" />
-                  <span>Powered by LipaChap</span>
-                </div>
+                )}
+                <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full border-2 border-white"></div>
+              </div>
+
+              <div className="ml-4">
+                <h1 className="text-2xl font-bold text-gray-900">{vendor.businessName}</h1>
+                <p className="text-gray-600">{vendor.ownerName}</p>
+                <p className="text-sm text-gray-500">{vendor.phone}</p>
               </div>
             </div>
-            <button
-              onClick={() => setShowCreateForm(true)}
-              className="bg-gradient-to-r from-purple-500 to-pink-500 text-white px-6 py-3 rounded-xl font-bold hover:from-purple-600 hover:to-pink-600 transition-all duration-300 flex items-center shadow-lg hover:shadow-xl transform hover:scale-105"
+
+            <div className="flex items-center space-x-3">
+              <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
+                <Bell className="w-5 h-5" />
+              </button>
+              <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors">
+                <Settings className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="bg-blue-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                New Checkout
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Date Filter */}
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-xl font-bold text-gray-900">Sales Performance</h2>
+          <div className="flex items-center space-x-2">
+            <Filter className="w-4 h-4 text-gray-500" />
+            <select
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              className="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
             >
-              <Plus className="w-5 h-5 mr-2" />
-              New Checkout
-            </button>
+              <option value="today">Today</option>
+              <option value="7days">Last 7 Days</option>
+              <option value="30days">Last 30 Days</option>
+              <option value="all">All Time</option>
+            </select>
+          </div>
+        </div>
+
+        {/* Metrics Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          {/* Total Checkouts */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Checkouts</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{metrics.checkouts.value}</p>
+              </div>
+              <div className="bg-blue-50 rounded-full p-3">
+                <Package className="w-6 h-6 text-blue-600" />
+              </div>
+            </div>
+            <div className="flex items-center mt-4">
+              {metrics.checkouts.isPositive ? (
+                <ArrowUpRight className="w-4 h-4 text-green-500 mr-1" />
+              ) : (
+                <ArrowDownRight className="w-4 h-4 text-red-500 mr-1" />
+              )}
+              <span
+                className={`text-sm font-medium ${metrics.checkouts.isPositive ? "text-green-600" : "text-red-600"}`}
+              >
+                {metrics.checkouts.growth > 0 ? "+" : ""}
+                {metrics.checkouts.growth}%
+              </span>
+              <span className="text-sm text-gray-500 ml-1">vs previous period</span>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-            <div className="bg-gradient-to-r from-blue-100 to-blue-200 rounded-2xl p-6 border-2 border-blue-200">
-              <div className="flex items-center">
-                <div className="bg-gradient-to-r from-blue-400 to-blue-600 rounded-full p-3 mr-4 shadow-lg">
-                  <Package className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 font-semibold">Checkouts</p>
-                  <p className="text-2xl font-bold text-gray-900">{vendorCheckouts.length}</p>
-                </div>
+          {/* Total Orders */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Orders</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{metrics.orders.value}</p>
+              </div>
+              <div className="bg-green-50 rounded-full p-3">
+                <Users className="w-6 h-6 text-green-600" />
               </div>
             </div>
+            <div className="flex items-center mt-4">
+              {metrics.orders.isPositive ? (
+                <ArrowUpRight className="w-4 h-4 text-green-500 mr-1" />
+              ) : (
+                <ArrowDownRight className="w-4 h-4 text-red-500 mr-1" />
+              )}
+              <span className={`text-sm font-medium ${metrics.orders.isPositive ? "text-green-600" : "text-red-600"}`}>
+                {metrics.orders.growth > 0 ? "+" : ""}
+                {metrics.orders.growth}%
+              </span>
+              <span className="text-sm text-gray-500 ml-1">vs previous period</span>
+            </div>
+          </div>
 
-            <div className="bg-gradient-to-r from-green-100 to-emerald-200 rounded-2xl p-6 border-2 border-green-200">
-              <div className="flex items-center">
-                <div className="bg-gradient-to-r from-green-400 to-emerald-600 rounded-full p-3 mr-4 shadow-lg">
-                  <TrendingUp className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 font-semibold">Orders</p>
-                  <p className="text-2xl font-bold text-gray-900">{totalOrders}</p>
-                </div>
+          {/* Total Revenue */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Total Revenue</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">KES {metrics.revenue.value.toLocaleString()}</p>
+              </div>
+              <div className="bg-yellow-50 rounded-full p-3">
+                <DollarSign className="w-6 h-6 text-yellow-600" />
               </div>
             </div>
+            <div className="flex items-center mt-4">
+              {metrics.revenue.isPositive ? (
+                <ArrowUpRight className="w-4 h-4 text-green-500 mr-1" />
+              ) : (
+                <ArrowDownRight className="w-4 h-4 text-red-500 mr-1" />
+              )}
+              <span className={`text-sm font-medium ${metrics.revenue.isPositive ? "text-green-600" : "text-red-600"}`}>
+                {metrics.revenue.growth > 0 ? "+" : ""}
+                {metrics.revenue.growth}%
+              </span>
+              <span className="text-sm text-gray-500 ml-1">vs previous period</span>
+            </div>
+          </div>
 
-            <div className="bg-gradient-to-r from-yellow-100 to-orange-200 rounded-2xl p-6 border-2 border-yellow-200 col-span-1 md:col-span-2">
-              <div className="flex items-center">
-                <div className="bg-gradient-to-r from-yellow-400 to-orange-600 rounded-full p-3 mr-4 shadow-lg">
-                  <Calendar className="w-8 h-8 text-white" />
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600 font-semibold">Total Revenue</p>
-                  <p className="text-3xl font-bold bg-gradient-to-r from-yellow-600 to-orange-600 bg-clip-text text-transparent">
-                    KSH {totalRevenue.toLocaleString()}
-                  </p>
-                </div>
+          {/* Average Order Value */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Avg. Order Value</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">
+                  KES {Math.round(metrics.averageOrder.value).toLocaleString()}
+                </p>
               </div>
+              <div className="bg-purple-50 rounded-full p-3">
+                <TrendingUp className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+            <div className="flex items-center mt-4">
+              {metrics.averageOrder.isPositive ? (
+                <ArrowUpRight className="w-4 h-4 text-green-500 mr-1" />
+              ) : (
+                <ArrowDownRight className="w-4 h-4 text-red-500 mr-1" />
+              )}
+              <span
+                className={`text-sm font-medium ${metrics.averageOrder.isPositive ? "text-green-600" : "text-red-600"}`}
+              >
+                {metrics.averageOrder.growth > 0 ? "+" : ""}
+                {metrics.averageOrder.growth}%
+              </span>
+              <span className="text-sm text-gray-500 ml-1">vs previous period</span>
             </div>
           </div>
         </div>
 
         {/* Create New Checkout Form */}
         {showCreateForm && (
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 mb-8 border border-white/20">
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-6">
-              Create New Multi-Item Checkout
-            </h2>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-gray-900">Create New Checkout</h3>
+              <button onClick={() => setShowCreateForm(false)} className="text-gray-400 hover:text-gray-600 p-1">
+                ✕
+              </button>
+            </div>
 
             <form onSubmit={handleCreateCheckout} className="space-y-6">
               <div className="grid md:grid-cols-2 gap-6">
-                <div className="group">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Checkout Title *</label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Checkout Title *</label>
                   <input
                     type="text"
                     required
                     value={newCheckout.title}
                     onChange={(e) => setNewCheckout((prev) => ({ ...prev, title: e.target.value }))}
-                    className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     placeholder="e.g. Summer Collection 2024"
                   />
                 </div>
 
-                <div className="group">
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">Description</label>
                   <textarea
                     value={newCheckout.description}
                     onChange={(e) => setNewCheckout((prev) => ({ ...prev, description: e.target.value }))}
-                    className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                     rows="3"
-                    placeholder="Brief description of your product collection"
+                    placeholder="Brief description"
                   />
                 </div>
               </div>
@@ -213,88 +403,85 @@ const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
               {/* Products Section */}
               <div>
                 <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-bold text-gray-800">Products</h3>
+                  <h4 className="text-md font-medium text-gray-900">Products</h4>
                   <button
                     type="button"
                     onClick={addItem}
-                    className="bg-gradient-to-r from-green-400 to-blue-500 text-white px-4 py-2 rounded-lg font-medium hover:from-green-500 hover:to-blue-600 transition-all duration-300 flex items-center shadow-lg transform hover:scale-105"
+                    className="bg-green-600 text-white px-3 py-1 rounded text-sm hover:bg-green-700 transition-colors flex items-center"
                   >
-                    <Plus className="w-4 h-4 mr-2" />
+                    <Plus className="w-4 h-4 mr-1" />
                     Add Product
                   </button>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {newCheckout.items.map((item, index) => (
-                    <div
-                      key={item.id}
-                      className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border-2 border-blue-100 relative"
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-bold text-gray-800">Product {index + 1}</h4>
+                    <div key={item.id} className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-sm font-medium text-gray-700">Product {index + 1}</span>
                         {newCheckout.items.length > 1 && (
                           <button
                             type="button"
                             onClick={() => removeItem(item.id)}
-                            className="text-red-500 hover:text-red-700 p-2 hover:bg-red-50 rounded-lg transition-all duration-300"
+                            className="text-red-500 hover:text-red-700 p-1"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         )}
                       </div>
 
-                      <div className="grid md:grid-cols-2 gap-4">
+                      <div className="grid md:grid-cols-2 gap-3">
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">Product Name *</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Product Name *</label>
                           <input
                             type="text"
                             required
                             value={item.name}
                             onChange={(e) => updateItem(item.id, "name", e.target.value)}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-200 focus:border-blue-400 transition-all duration-300"
-                            placeholder="e.g. Handmade Earrings"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+                            placeholder="Product name"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">Price (KSH) *</label>
+                          <label className="block text-xs font-medium text-gray-600 mb-1">Price (KES) *</label>
                           <input
                             type="number"
                             required
                             min="1"
                             value={item.price}
                             onChange={(e) => updateItem(item.id, "price", e.target.value)}
-                            className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-200 focus:border-blue-400 transition-all duration-300"
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                             placeholder="500"
                           />
                         </div>
                       </div>
 
-                      <div className="mt-4">
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Product Description</label>
+                      <div className="mt-3">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
                         <textarea
                           value={item.description}
                           onChange={(e) => updateItem(item.id, "description", e.target.value)}
-                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-200 focus:border-blue-400 transition-all duration-300"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                           rows="2"
-                          placeholder="Brief description of this product"
+                          placeholder="Product description"
                         />
                       </div>
 
-                      <div className="mt-4">
-                        <label className="block text-sm font-semibold text-gray-700 mb-2">Product Image</label>
+                      <div className="mt-3">
+                        <label className="block text-xs font-medium text-gray-600 mb-1">Image</label>
                         <input
                           type="file"
                           accept="image/*"
                           onChange={(e) => handleImageUpload(e, item.id)}
-                          className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-200 focus:border-blue-400 transition-all duration-300"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
                         />
                         {item.image && (
-                          <div className="mt-3 flex justify-center">
+                          <div className="mt-2 flex justify-center">
                             <img
                               src={item.image || "/placeholder.svg"}
                               alt="Product preview"
-                              className="w-24 h-24 object-cover rounded-xl border-4 border-blue-200 shadow-lg"
+                              className="w-16 h-16 object-cover rounded border"
                             />
                           </div>
                         )}
@@ -305,10 +492,10 @@ const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
               </div>
 
               {/* Payment Methods */}
-              <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-2xl p-6 border-2 border-yellow-100">
-                <label className="block text-lg font-bold text-gray-800 mb-4">Payment Methods</label>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <label className="flex items-center p-4 bg-white rounded-xl border-2 border-gray-200 hover:border-green-400 transition-all duration-300 cursor-pointer">
+              <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                <label className="block text-sm font-medium text-gray-700 mb-3">Payment Methods</label>
+                <div className="grid grid-cols-3 gap-3">
+                  <label className="flex items-center p-3 bg-white rounded border hover:border-green-400 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={newCheckout.paymentMethods.mpesa}
@@ -318,11 +505,11 @@ const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
                           paymentMethods: { ...prev.paymentMethods, mpesa: e.target.checked },
                         }))
                       }
-                      className="rounded border-gray-300 text-green-600 focus:ring-green-500 w-5 h-5"
+                      className="rounded border-gray-300 text-green-600 focus:ring-green-500"
                     />
-                    <span className="ml-3 font-semibold text-gray-700">M-Pesa</span>
+                    <span className="ml-2 text-sm font-medium text-gray-700">M-Pesa</span>
                   </label>
-                  <label className="flex items-center p-4 bg-white rounded-xl border-2 border-gray-200 hover:border-blue-400 transition-all duration-300 cursor-pointer">
+                  <label className="flex items-center p-3 bg-white rounded border hover:border-blue-400 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={newCheckout.paymentMethods.stripe}
@@ -332,11 +519,11 @@ const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
                           paymentMethods: { ...prev.paymentMethods, stripe: e.target.checked },
                         }))
                       }
-                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500 w-5 h-5"
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="ml-3 font-semibold text-gray-700">Cards</span>
+                    <span className="ml-2 text-sm font-medium text-gray-700">Cards</span>
                   </label>
-                  <label className="flex items-center p-4 bg-white rounded-xl border-2 border-gray-200 hover:border-yellow-400 transition-all duration-300 cursor-pointer">
+                  <label className="flex items-center p-3 bg-white rounded border hover:border-yellow-400 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={newCheckout.paymentMethods.paypal}
@@ -346,24 +533,24 @@ const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
                           paymentMethods: { ...prev.paymentMethods, paypal: e.target.checked },
                         }))
                       }
-                      className="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500 w-5 h-5"
+                      className="rounded border-gray-300 text-yellow-600 focus:ring-yellow-500"
                     />
-                    <span className="ml-3 font-semibold text-gray-700">PayPal</span>
+                    <span className="ml-2 text-sm font-medium text-gray-700">PayPal</span>
                   </label>
                 </div>
               </div>
 
-              <div className="flex space-x-4">
+              <div className="flex justify-end space-x-3">
                 <button
                   type="button"
                   onClick={() => setShowCreateForm(false)}
-                  className="flex-1 bg-gray-200 text-gray-700 py-4 px-6 rounded-xl font-bold hover:bg-gray-300 transition-all duration-300 transform hover:scale-105"
+                  className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300 transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className="flex-1 bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 px-6 rounded-xl font-bold hover:from-purple-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 transition-colors"
                 >
                   Create Checkout
                 </button>
@@ -372,75 +559,97 @@ const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
           </div>
         )}
 
-        {/* Checkout Links */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border border-white/20">
-          <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-6">
-            Your Checkout Pages
-          </h2>
+        {/* Checkout Pages List */}
+        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+          <div className="flex items-center justify-between mb-6">
+            <h3 className="text-lg font-bold text-gray-900">Checkout Pages</h3>
+            <span className="text-sm text-gray-500">{vendorCheckouts.length} total</span>
+          </div>
 
           {vendorCheckouts.length === 0 ? (
             <div className="text-center py-12">
-              <div className="bg-gradient-to-r from-purple-100 to-pink-100 rounded-full w-24 h-24 flex items-center justify-center mx-auto mb-6">
-                <Package className="w-12 h-12 text-purple-500" />
+              <div className="bg-gray-50 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-4">
+                <Package className="w-8 h-8 text-gray-400" />
               </div>
-              <p className="text-gray-500 text-lg">No checkout pages created yet.</p>
-              <p className="text-gray-400">Create your first multi-item checkout to get started!</p>
+              <h4 className="text-lg font-medium text-gray-900 mb-2">No checkout pages yet</h4>
+              <p className="text-gray-500 mb-4">Create your first checkout page to start selling online.</p>
+              <button
+                onClick={() => setShowCreateForm(true)}
+                className="bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center mx-auto"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                Create First Checkout
+              </button>
             </div>
           ) : (
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <div className="space-y-4">
               {vendorCheckouts.map((checkout) => (
                 <div
                   key={checkout.id}
-                  className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border-2 border-blue-100 hover:border-purple-300 transition-all duration-300 transform hover:scale-105"
+                  className="border border-gray-200 rounded-lg p-4 hover:border-gray-300 transition-colors"
                 >
-                  <div className="mb-4">
-                    <h3 className="font-bold text-gray-900 text-lg">{checkout.title}</h3>
-                    <p className="text-sm text-gray-600 mb-2">{checkout.description}</p>
-                    <p className="text-xs text-gray-500">Created {new Date(checkout.createdAt).toLocaleDateString()}</p>
-                    <p className="text-sm font-semibold text-purple-600 mt-2">
-                      {checkout.items?.length || 0} product(s)
-                    </p>
-                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3 mb-2">
+                        <h4 className="font-medium text-gray-900">{checkout.title}</h4>
+                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                          {checkout.items?.length || 0} items
+                        </span>
+                        {checkout.orders?.length === 0 && (
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-yellow-100 text-yellow-800">
+                            New
+                          </span>
+                        )}
+                      </div>
 
-                  <div className="bg-white rounded-lg p-3 mb-4">
-                    <p className="text-xs text-gray-600 mb-1">Checkout URL:</p>
-                    <p className="text-xs font-mono text-gray-800 break-all">{checkout.url}</p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    <Link
-                      to={`/checkout/${checkout.vendorId}/${checkout.id}`}
-                      className="bg-blue-100 text-blue-700 px-3 py-1 rounded-lg text-sm font-medium hover:bg-blue-200 transition-all duration-300 flex items-center"
-                    >
-                      <Eye className="w-4 h-4 mr-1" />
-                      Preview
-                    </Link>
-
-                    <button
-                      onClick={() => copyToClipboard(checkout.url)}
-                      className="bg-gray-100 text-gray-700 px-3 py-1 rounded-lg text-sm font-medium hover:bg-gray-200 transition-all duration-300 flex items-center"
-                    >
-                      <Copy className="w-4 h-4 mr-1" />
-                      Copy
-                    </button>
-
-                    <button
-                      onClick={() => setShowQR(checkout.id)}
-                      className="bg-green-100 text-green-700 px-3 py-1 rounded-lg text-sm font-medium hover:bg-green-200 transition-all duration-300 flex items-center"
-                    >
-                      <QrCode className="w-4 h-4 mr-1" />
-                      QR
-                    </button>
-                  </div>
-
-                  {checkout.orders && checkout.orders.length > 0 && (
-                    <div className="bg-gradient-to-r from-green-100 to-emerald-100 rounded-lg p-3 border border-green-200">
-                      <p className="text-sm font-semibold text-green-800">{checkout.orders.length} order(s)</p>
-                      <p className="text-sm text-green-700">
-                        KSH {checkout.orders.reduce((sum, order) => sum + order.totalAmount, 0).toLocaleString()} total
-                      </p>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                          <span className="text-gray-500">Orders:</span>
+                          <span className="ml-1 font-medium">{checkout.orders?.length || 0}</span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Revenue:</span>
+                          <span className="ml-1 font-medium text-green-600">
+                            KES{" "}
+                            {(
+                              checkout.orders?.reduce((sum, order) => sum + order.totalAmount, 0) || 0
+                            ).toLocaleString()}
+                          </span>
+                        </div>
+                        <div>
+                          <span className="text-gray-500">Created:</span>
+                          <span className="ml-1 font-medium">{new Date(checkout.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Link
+                            to={`/checkout/${checkout.vendorId}/${checkout.id}`}
+                            className="inline-flex items-center px-2 py-1 bg-blue-600 text-white rounded text-xs font-medium hover:bg-blue-700 transition-colors"
+                          >
+                            <Eye className="w-3 h-3 mr-1" />
+                            Preview
+                          </Link>
+                          <button
+                            onClick={() => copyToClipboard(checkout.url, checkout.id)}
+                            className={`inline-flex items-center px-2 py-1 rounded text-xs font-medium transition-colors ${
+                              copiedId === checkout.id
+                                ? "bg-green-100 text-green-700"
+                                : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                            }`}
+                          >
+                            <Copy className="w-3 h-3 mr-1" />
+                            {copiedId === checkout.id ? "Copied!" : "Copy"}
+                          </button>
+                          <button
+                            onClick={() => setShowQR(checkout.id)}
+                            className="inline-flex items-center px-2 py-1 bg-green-600 text-white rounded text-xs font-medium hover:bg-green-700 transition-colors"
+                          >
+                            <QrCode className="w-3 h-3 mr-1" />
+                            QR
+                          </button>
+                        </div>
+                      </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               ))}
             </div>
