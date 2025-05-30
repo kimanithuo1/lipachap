@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { CreditCard, Smartphone, DollarSign, ArrowLeft, Loader, Sparkles, Shield } from "lucide-react"
+import { CreditCard, Smartphone, DollarSign, ArrowLeft, Loader, Sparkles, Shield, Calculator } from "lucide-react"
 
 const PaymentOptions = ({ checkout, customerData, cartItems, totalAmount, onPaymentSuccess, onBack }) => {
   const [selectedMethod, setSelectedMethod] = useState("")
@@ -34,7 +34,10 @@ const PaymentOptions = ({ checkout, customerData, cartItems, totalAmount, onPaym
         <h3 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
           Processing Payment...
         </h3>
-        <p className="text-gray-600">Please wait while we securely process your payment.</p>
+        <p className="text-gray-600 mb-4">Please wait while we securely process your payment.</p>
+        <div className="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+          <p className="text-lg font-bold text-yellow-800">Amount: KES {totalAmount.toLocaleString()}</p>
+        </div>
         <div className="flex items-center justify-center mt-4 text-sm text-gray-500">
           <Sparkles className="w-4 h-4 mr-1 text-yellow-500" />
           <span>Secured with 256-bit encryption</span>
@@ -59,23 +62,29 @@ const PaymentOptions = ({ checkout, customerData, cartItems, totalAmount, onPaym
       </div>
 
       {/* Order Summary */}
-      <div className="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-4 border-2 border-purple-100">
-        <h4 className="font-bold text-gray-800 mb-3">Order Summary</h4>
-        {cartItems.map((item) => (
-          <div key={item.id} className="flex justify-between items-center mb-2">
-            <span className="text-sm text-gray-600">
-              {item.name} x {item.quantity}
-            </span>
-            <span className="text-sm font-semibold text-gray-800">KSH {item.total.toLocaleString()}</span>
-          </div>
-        ))}
-        <div className="border-t border-purple-200 pt-3 mt-3">
+      <div className="mb-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 border-2 border-purple-100">
+        <h4 className="font-bold text-gray-800 mb-4 flex items-center">
+          <Calculator className="w-5 h-5 mr-2 text-purple-600" />
+          Order Summary
+        </h4>
+        <div className="space-y-2 mb-4">
+          {cartItems.map((item) => (
+            <div key={item.id} className="flex justify-between items-center">
+              <span className="text-sm text-gray-600">
+                {item.name} × {item.quantity}
+              </span>
+              <span className="text-sm font-semibold text-gray-800">KES {item.total.toLocaleString()}</span>
+            </div>
+          ))}
+        </div>
+        <div className="border-t-2 border-purple-200 pt-4">
           <div className="flex justify-between items-center">
-            <span className="font-bold text-gray-900">Total to Pay:</span>
-            <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-              KSH {totalAmount.toLocaleString()}
+            <span className="text-lg font-bold text-gray-900">TOTAL AMOUNT:</span>
+            <span className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+              KES {totalAmount.toLocaleString()}
             </span>
           </div>
+          <p className="text-sm text-gray-500 text-right mt-1">Inclusive of all charges</p>
         </div>
       </div>
 
@@ -87,8 +96,8 @@ const PaymentOptions = ({ checkout, customerData, cartItems, totalAmount, onPaym
                 <Smartphone className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h4 className="font-bold text-gray-900">M-Pesa</h4>
-                <p className="text-sm text-gray-600">Pay with your mobile money</p>
+                <h4 className="font-bold text-gray-900">M-Pesa Mobile Money</h4>
+                <p className="text-sm text-gray-600">Most popular payment method in Kenya</p>
               </div>
             </div>
 
@@ -98,16 +107,16 @@ const PaymentOptions = ({ checkout, customerData, cartItems, totalAmount, onPaym
                 type="tel"
                 value={mpesaPhone}
                 onChange={(e) => setMpesaPhone(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-200 focus:border-green-400 transition-all duration-300"
+                className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-green-200 focus:border-green-400 transition-all duration-300 text-lg"
                 placeholder="+254 700 000 000"
               />
             </div>
 
             <button
               onClick={() => handlePayment("mpesa")}
-              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-3 px-4 rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="w-full bg-gradient-to-r from-green-500 to-emerald-600 text-white py-4 px-4 rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-lg"
             >
-              Pay KSH {totalAmount.toLocaleString()} with M-Pesa
+              Pay KES {totalAmount.toLocaleString()} via M-Pesa
             </button>
           </div>
         )}
@@ -126,9 +135,9 @@ const PaymentOptions = ({ checkout, customerData, cartItems, totalAmount, onPaym
 
             <button
               onClick={() => handlePayment("stripe")}
-              className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-3 px-4 rounded-xl font-bold hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 px-4 rounded-xl font-bold hover:from-blue-600 hover:to-indigo-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-lg"
             >
-              Pay KSH {totalAmount.toLocaleString()} with Card
+              Pay KES {totalAmount.toLocaleString()} with Card
             </button>
           </div>
         )}
@@ -147,16 +156,16 @@ const PaymentOptions = ({ checkout, customerData, cartItems, totalAmount, onPaym
 
             <button
               onClick={() => handlePayment("paypal")}
-              className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 text-white py-3 px-4 rounded-xl font-bold hover:from-yellow-600 hover:to-orange-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+              className="w-full bg-gradient-to-r from-yellow-500 to-orange-600 text-white py-4 px-4 rounded-xl font-bold hover:from-yellow-600 hover:to-orange-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-lg"
             >
-              Pay KSH {totalAmount.toLocaleString()} with PayPal
+              Pay KES {totalAmount.toLocaleString()} with PayPal
             </button>
           </div>
         )}
       </div>
 
       <div className="mt-6 text-center">
-        <div className="flex items-center justify-center text-xs text-gray-500">
+        <div className="flex items-center justify-center text-sm text-gray-500">
           <Shield className="w-4 h-4 mr-1 text-green-500" />
           <span>Your payment is secured with 256-bit SSL encryption</span>
         </div>

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
-import { Store, ArrowRight, Plus, Trash2, Sparkles } from "lucide-react"
+import { Store, ArrowRight, Plus, Trash2, Sparkles, Building2, Calculator } from "lucide-react"
 
 const VendorSetup = ({ onCreateVendor, onCreateCheckout }) => {
   const navigate = useNavigate()
@@ -14,6 +14,7 @@ const VendorSetup = ({ onCreateVendor, onCreateCheckout }) => {
     email: "",
     description: "",
     logo: null,
+    businessType: "retail", // retail, salon, mitumba, kiosk, restaurant, other
   })
 
   const [checkoutData, setCheckoutData] = useState({
@@ -34,6 +35,17 @@ const VendorSetup = ({ onCreateVendor, onCreateCheckout }) => {
       paypal: false,
     },
   })
+
+  const businessTypes = [
+    { value: "retail", label: "Retail Shop", icon: "🏪" },
+    { value: "salon", label: "Salon/Beauty", icon: "💄" },
+    { value: "mitumba", label: "Mitumba/Clothes", icon: "👕" },
+    { value: "kiosk", label: "Kiosk/Duka", icon: "🏬" },
+    { value: "restaurant", label: "Restaurant/Food", icon: "🍽️" },
+    { value: "electronics", label: "Electronics", icon: "📱" },
+    { value: "pharmacy", label: "Pharmacy/Chemist", icon: "💊" },
+    { value: "other", label: "Other Business", icon: "🏢" },
+  ]
 
   const handleVendorSubmit = (e) => {
     e.preventDefault()
@@ -93,6 +105,19 @@ const VendorSetup = ({ onCreateVendor, onCreateCheckout }) => {
     }))
   }
 
+  // Calculate total value of all products
+  const getTotalValue = () => {
+    return checkoutData.items.reduce((total, item) => {
+      const price = Number(item.price) || 0
+      return total + price
+    }, 0)
+  }
+
+  // Get valid products count
+  const getValidProductsCount = () => {
+    return checkoutData.items.filter((item) => item.name && item.price).length
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-100 via-fuchsia-50 to-orange-100 p-4">
       <div className="max-w-2xl mx-auto">
@@ -106,9 +131,10 @@ const VendorSetup = ({ onCreateVendor, onCreateCheckout }) => {
           </h1>
           <div className="flex items-center justify-center gap-2 text-gray-600">
             <Sparkles className="w-4 h-4 text-yellow-500" />
-            <p>Create your vibrant checkout experience</p>
+            <p>Create your professional checkout experience</p>
             <Sparkles className="w-4 h-4 text-yellow-500" />
           </div>
+          <p className="text-sm text-gray-500 mt-2">Perfect for Kenyan businesses - Kiosks, Salons, Mitumba & More!</p>
         </div>
 
         {/* Enhanced Progress Indicator */}
@@ -140,11 +166,39 @@ const VendorSetup = ({ onCreateVendor, onCreateCheckout }) => {
 
         {step === 1 && (
           <div className="bg-white/80 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border border-white/20">
-            <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-6">
+            <h2 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent mb-6 flex items-center">
+              <Building2 className="w-6 h-6 mr-2 text-purple-600" />
               Business Information
             </h2>
 
             <form onSubmit={handleVendorSubmit} className="space-y-6">
+              <div className="group">
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Business Type *</label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {businessTypes.map((type) => (
+                    <label
+                      key={type.value}
+                      className={`flex flex-col items-center p-3 rounded-xl border-2 cursor-pointer transition-all duration-300 ${
+                        vendorData.businessType === type.value
+                          ? "border-purple-400 bg-purple-50"
+                          : "border-gray-200 hover:border-purple-300"
+                      }`}
+                    >
+                      <input
+                        type="radio"
+                        name="businessType"
+                        value={type.value}
+                        checked={vendorData.businessType === type.value}
+                        onChange={(e) => setVendorData((prev) => ({ ...prev, businessType: e.target.value }))}
+                        className="sr-only"
+                      />
+                      <span className="text-2xl mb-1">{type.icon}</span>
+                      <span className="text-xs font-medium text-center">{type.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
               <div className="group">
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Business Name *</label>
                 <input
@@ -152,8 +206,8 @@ const VendorSetup = ({ onCreateVendor, onCreateCheckout }) => {
                   required
                   value={vendorData.businessName}
                   onChange={(e) => setVendorData((prev) => ({ ...prev, businessName: e.target.value }))}
-                  className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300"
-                  placeholder="e.g. Sarah's Boutique"
+                  className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg"
+                  placeholder="e.g. Sarah's Beauty Salon, Mama Njeri's Kiosk"
                 />
               </div>
 
@@ -164,7 +218,7 @@ const VendorSetup = ({ onCreateVendor, onCreateCheckout }) => {
                   required
                   value={vendorData.ownerName}
                   onChange={(e) => setVendorData((prev) => ({ ...prev, ownerName: e.target.value }))}
-                  className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300"
+                  className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg"
                   placeholder="Your full name"
                 />
               </div>
@@ -176,24 +230,24 @@ const VendorSetup = ({ onCreateVendor, onCreateCheckout }) => {
                   required
                   value={vendorData.phone}
                   onChange={(e) => setVendorData((prev) => ({ ...prev, phone: e.target.value }))}
-                  className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300"
+                  className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg"
                   placeholder="+254 700 000 000"
                 />
               </div>
 
               <div className="group">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Email (Optional)</label>
                 <input
                   type="email"
                   value={vendorData.email}
                   onChange={(e) => setVendorData((prev) => ({ ...prev, email: e.target.value }))}
-                  className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300"
+                  className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg"
                   placeholder="your@email.com"
                 />
               </div>
 
               <div className="group">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Business Logo</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Business Logo (Optional)</label>
                 <input
                   type="file"
                   accept="image/*"
@@ -213,7 +267,7 @@ const VendorSetup = ({ onCreateVendor, onCreateCheckout }) => {
 
               <button
                 type="submit"
-                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 px-6 rounded-xl font-bold hover:from-purple-600 hover:to-pink-600 transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 px-6 rounded-xl font-bold hover:from-purple-600 hover:to-pink-600 transition-all duration-300 flex items-center justify-center shadow-lg hover:shadow-xl transform hover:scale-105 text-lg"
               >
                 Continue to Products
                 <ArrowRight className="w-5 h-5 ml-2" />
@@ -236,19 +290,19 @@ const VendorSetup = ({ onCreateVendor, onCreateCheckout }) => {
                   required
                   value={checkoutData.title}
                   onChange={(e) => setCheckoutData((prev) => ({ ...prev, title: e.target.value }))}
-                  className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300"
-                  placeholder="e.g. Summer Collection 2024"
+                  className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg"
+                  placeholder="e.g. Hair Products, Mitumba Collection, Electronics"
                 />
               </div>
 
               <div className="group">
-                <label className="block text-sm font-semibold text-gray-700 mb-2">Checkout Description</label>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Description (Optional)</label>
                 <textarea
                   value={checkoutData.description}
                   onChange={(e) => setCheckoutData((prev) => ({ ...prev, description: e.target.value }))}
                   className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300"
                   rows="3"
-                  placeholder="Brief description of your product collection"
+                  placeholder="Brief description of your products"
                 />
               </div>
 
@@ -266,6 +320,25 @@ const VendorSetup = ({ onCreateVendor, onCreateCheckout }) => {
                   </button>
                 </div>
 
+                {/* Product Summary */}
+                {getValidProductsCount() > 0 && (
+                  <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl p-4 mb-6 border-2 border-green-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center">
+                        <Calculator className="w-5 h-5 text-green-600 mr-2" />
+                        <div>
+                          <p className="font-bold text-green-800">Catalog Summary</p>
+                          <p className="text-sm text-green-600">{getValidProductsCount()} product(s) added</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-green-600">Total Catalog Value</p>
+                        <p className="text-xl font-bold text-green-800">KES {getTotalValue().toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-6">
                   {checkoutData.items.map((item, index) => (
                     <div
@@ -273,7 +346,14 @@ const VendorSetup = ({ onCreateVendor, onCreateCheckout }) => {
                       className="bg-gradient-to-r from-blue-50 to-purple-50 rounded-2xl p-6 border-2 border-blue-100 relative"
                     >
                       <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-bold text-gray-800">Product {index + 1}</h4>
+                        <h4 className="font-bold text-gray-800 flex items-center">
+                          Product {index + 1}
+                          {item.name && item.price && (
+                            <span className="ml-2 bg-green-100 text-green-800 text-xs font-bold px-2 py-1 rounded-full">
+                              ✓ Complete
+                            </span>
+                          )}
+                        </h4>
                         {checkoutData.items.length > 1 && (
                           <button
                             type="button"
@@ -294,12 +374,12 @@ const VendorSetup = ({ onCreateVendor, onCreateCheckout }) => {
                             value={item.name}
                             onChange={(e) => updateItem(item.id, "name", e.target.value)}
                             className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-blue-200 focus:border-blue-400 transition-all duration-300"
-                            placeholder="e.g. Handmade Earrings"
+                            placeholder="e.g. Hair Relaxer, Jeans, Phone Case"
                           />
                         </div>
 
                         <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">Price (KSH) *</label>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Price (KES) *</label>
                           <input
                             type="number"
                             required
@@ -311,6 +391,15 @@ const VendorSetup = ({ onCreateVendor, onCreateCheckout }) => {
                           />
                         </div>
                       </div>
+
+                      {/* Show price preview */}
+                      {item.price && (
+                        <div className="mt-2 text-right">
+                          <span className="text-lg font-bold text-blue-600">
+                            KES {Number(item.price).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
 
                       <div className="mt-4">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Product Description</label>

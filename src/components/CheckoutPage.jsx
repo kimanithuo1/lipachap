@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams } from "react-router-dom"
-import { Shield, Phone, Mail, CheckCircle, AlertCircle, ShoppingCart, Plus, Minus } from "lucide-react"
+import { Shield, Phone, Mail, CheckCircle, AlertCircle, ShoppingCart, Plus, Minus, Calculator } from "lucide-react"
 import PaymentOptions from "./PaymentOptions"
 import Invoice from "./Invoice"
 
@@ -48,7 +48,7 @@ const CheckoutPage = ({ vendors, checkouts, onAddOrder }) => {
   const getTotalAmount = () => {
     return checkout.items.reduce((total, item) => {
       const quantity = cart[item.id] || 0
-      return total + item.price * quantity
+      return total + Number(item.price) * quantity
     }, 0)
   }
 
@@ -58,8 +58,12 @@ const CheckoutPage = ({ vendors, checkouts, onAddOrder }) => {
       .map((item) => ({
         ...item,
         quantity: cart[item.id],
-        total: item.price * cart[item.id],
+        total: Number(item.price) * cart[item.id],
       }))
+  }
+
+  const getTotalItems = () => {
+    return Object.values(cart).reduce((sum, quantity) => sum + quantity, 0)
   }
 
   const handleCustomerSubmit = (e) => {
@@ -90,32 +94,17 @@ const CheckoutPage = ({ vendors, checkouts, onAddOrder }) => {
   if (paymentStep === "success") {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-100 via-emerald-50 to-teal-100 p-4">
-        <div className="max-w-md mx-auto pt-8">
-          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 text-center border border-white/20">
-            <div className="bg-gradient-to-r from-green-400 to-emerald-500 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <CheckCircle className="w-10 h-10 text-white" />
-            </div>
-            <h2 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
-              Payment Successful!
-            </h2>
-            <p className="text-gray-600 mb-6">Thank you for your purchase. Your order has been confirmed.</p>
-
-            <div className="bg-gradient-to-r from-gray-50 to-gray-100 rounded-2xl p-6 mb-6 text-left">
-              <h3 className="font-bold text-gray-900 mb-4">Order Summary</h3>
-              {orderData.items.map((item) => (
-                <div key={item.id} className="flex justify-between items-center mb-2">
-                  <span className="text-sm text-gray-600">
-                    {item.name} x {item.quantity}
-                  </span>
-                  <span className="text-sm font-semibold text-gray-800">KSH {item.total.toLocaleString()}</span>
-                </div>
-              ))}
-              <div className="border-t border-gray-300 pt-2 mt-4">
-                <div className="flex justify-between items-center">
-                  <span className="font-bold text-gray-900">Total:</span>
-                  <span className="text-lg font-bold text-green-600">KSH {orderData.totalAmount.toLocaleString()}</span>
-                </div>
+        <div className="max-w-4xl mx-auto pt-8">
+          <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-8 border border-white/20">
+            <div className="text-center mb-8">
+              <div className="bg-gradient-to-r from-green-400 to-emerald-500 rounded-full w-20 h-20 flex items-center justify-center mx-auto mb-6 shadow-lg">
+                <CheckCircle className="w-10 h-10 text-white" />
               </div>
+              <h2 className="text-3xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent mb-2">
+                Payment Successful!
+              </h2>
+              <p className="text-gray-600 mb-2">Thank you for your purchase. Your order has been confirmed.</p>
+              <p className="text-sm text-gray-500">Invoice generated and ready for download</p>
             </div>
 
             <Invoice orderData={orderData} vendor={vendor} checkout={checkout} />
@@ -184,6 +173,11 @@ const CheckoutPage = ({ vendors, checkouts, onAddOrder }) => {
               <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center">
                 <ShoppingCart className="w-5 h-5 mr-2 text-purple-500" />
                 Select Products
+                {getTotalItems() > 0 && (
+                  <span className="ml-2 bg-purple-100 text-purple-800 text-xs font-bold px-2 py-1 rounded-full">
+                    {getTotalItems()} items
+                  </span>
+                )}
               </h3>
 
               <div className="space-y-4">
@@ -203,9 +197,7 @@ const CheckoutPage = ({ vendors, checkouts, onAddOrder }) => {
                       <div className="flex-1">
                         <h4 className="font-bold text-gray-900">{item.name}</h4>
                         <p className="text-sm text-gray-600 mb-2">{item.description}</p>
-                        <p className="text-lg font-bold text-purple-600">
-                          KSH {Number.parseInt(item.price).toLocaleString()}
-                        </p>
+                        <p className="text-lg font-bold text-purple-600">KES {Number(item.price).toLocaleString()}</p>
                       </div>
                     </div>
 
@@ -215,15 +207,15 @@ const CheckoutPage = ({ vendors, checkouts, onAddOrder }) => {
                         <button
                           type="button"
                           onClick={() => updateCartQuantity(item.id, (cart[item.id] || 0) - 1)}
-                          className="w-8 h-8 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-200 transition-all duration-300"
+                          className="w-10 h-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center hover:bg-red-200 transition-all duration-300 font-bold text-lg"
                         >
                           <Minus className="w-4 h-4" />
                         </button>
-                        <span className="w-8 text-center font-bold text-gray-800">{cart[item.id] || 0}</span>
+                        <span className="w-12 text-center font-bold text-gray-800 text-lg">{cart[item.id] || 0}</span>
                         <button
                           type="button"
                           onClick={() => updateCartQuantity(item.id, (cart[item.id] || 0) + 1)}
-                          className="w-8 h-8 bg-green-100 text-green-600 rounded-full flex items-center justify-center hover:bg-green-200 transition-all duration-300"
+                          className="w-10 h-10 bg-green-100 text-green-600 rounded-full flex items-center justify-center hover:bg-green-200 transition-all duration-300 font-bold text-lg"
                         >
                           <Plus className="w-4 h-4" />
                         </button>
@@ -234,8 +226,8 @@ const CheckoutPage = ({ vendors, checkouts, onAddOrder }) => {
                       <div className="mt-3 pt-3 border-t border-blue-200">
                         <div className="flex justify-between items-center">
                           <span className="text-sm text-gray-600">Subtotal:</span>
-                          <span className="font-bold text-purple-600">
-                            KSH {(Number.parseInt(item.price) * cart[item.id]).toLocaleString()}
+                          <span className="font-bold text-purple-600 text-lg">
+                            KES {(Number(item.price) * cart[item.id]).toLocaleString()}
                           </span>
                         </div>
                       </div>
@@ -243,18 +235,26 @@ const CheckoutPage = ({ vendors, checkouts, onAddOrder }) => {
                   </div>
                 ))}
               </div>
+            </div>
 
-              {getTotalAmount() > 0 && (
-                <div className="mt-6 bg-gradient-to-r from-purple-100 to-pink-100 rounded-2xl p-4 border-2 border-purple-200">
-                  <div className="flex justify-between items-center">
-                    <span className="text-lg font-bold text-gray-900">Total Amount:</span>
-                    <span className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                      KSH {getTotalAmount().toLocaleString()}
-                    </span>
+            {/* Total Amount Display - Prominent */}
+            {getTotalAmount() > 0 && (
+              <div className="bg-gradient-to-r from-green-400 to-emerald-500 rounded-3xl shadow-2xl p-6 mb-6 border border-white/20 sticky bottom-4 z-10">
+                <div className="flex items-center justify-between text-white">
+                  <div className="flex items-center">
+                    <Calculator className="w-6 h-6 mr-3" />
+                    <div>
+                      <p className="text-sm opacity-90">Total Amount</p>
+                      <p className="text-xs opacity-75">{getTotalItems()} item(s)</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-3xl font-bold">KES {getTotalAmount().toLocaleString()}</p>
+                    <p className="text-sm opacity-90">Inclusive of all charges</p>
                   </div>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
 
             {/* Customer Details */}
             <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl p-6 border border-white/20">
@@ -268,7 +268,7 @@ const CheckoutPage = ({ vendors, checkouts, onAddOrder }) => {
                     required
                     value={customerData.name}
                     onChange={(e) => setCustomerData((prev) => ({ ...prev, name: e.target.value }))}
-                    className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300"
+                    className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg"
                     placeholder="Your full name"
                   />
                 </div>
@@ -280,7 +280,7 @@ const CheckoutPage = ({ vendors, checkouts, onAddOrder }) => {
                     required
                     value={customerData.phone}
                     onChange={(e) => setCustomerData((prev) => ({ ...prev, phone: e.target.value }))}
-                    className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300"
+                    className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg"
                     placeholder="+254 700 000 000"
                   />
                 </div>
@@ -291,7 +291,7 @@ const CheckoutPage = ({ vendors, checkouts, onAddOrder }) => {
                     type="email"
                     value={customerData.email}
                     onChange={(e) => setCustomerData((prev) => ({ ...prev, email: e.target.value }))}
-                    className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300"
+                    className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg"
                     placeholder="your@email.com"
                   />
                 </div>
@@ -299,9 +299,11 @@ const CheckoutPage = ({ vendors, checkouts, onAddOrder }) => {
                 <button
                   type="submit"
                   disabled={getTotalAmount() === 0}
-                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 px-6 rounded-xl font-bold hover:from-purple-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+                  className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 px-6 rounded-xl font-bold hover:from-purple-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none text-lg"
                 >
-                  Continue to Payment
+                  {getTotalAmount() > 0
+                    ? `Proceed to Pay KES ${getTotalAmount().toLocaleString()}`
+                    : "Select items to continue"}
                 </button>
               </form>
             </div>
