@@ -4,22 +4,29 @@ import { useState, useEffect } from "react"
 import VendorSetup from "./components/VendorSetup"
 import CheckoutPage from "./components/CheckoutPage"
 import Dashboard from "./components/Dashboard"
+import InvoiceCreator from "./components/InvoiceCreator"
+import InvoiceDisplay from "./components/InvoiceDisplay"
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
 
 function App() {
   const [vendors, setVendors] = useState({})
   const [checkouts, setCheckouts] = useState({})
+  const [invoices, setInvoices] = useState({})
 
   // Load data from localStorage on app start
   useEffect(() => {
     const savedVendors = localStorage.getItem("lipachap-vendors")
     const savedCheckouts = localStorage.getItem("lipachap-checkouts")
+    const savedInvoices = localStorage.getItem("lipachap-invoices")
 
     if (savedVendors) {
       setVendors(JSON.parse(savedVendors))
     }
     if (savedCheckouts) {
       setCheckouts(JSON.parse(savedCheckouts))
+    }
+    if (savedInvoices) {
+      setInvoices(JSON.parse(savedInvoices))
     }
   }, [])
 
@@ -31,6 +38,10 @@ function App() {
   useEffect(() => {
     localStorage.setItem("lipachap-checkouts", JSON.stringify(checkouts))
   }, [checkouts])
+
+  useEffect(() => {
+    localStorage.setItem("lipachap-invoices", JSON.stringify(invoices))
+  }, [invoices])
 
   const createVendor = (vendorData) => {
     const vendorId = Date.now().toString()
@@ -67,6 +78,15 @@ function App() {
     return { checkoutId, url: checkoutUrl }
   }
 
+  const createInvoice = (invoiceData) => {
+    const invoiceId = invoiceData.id
+    setInvoices((prev) => ({
+      ...prev,
+      [invoiceId]: invoiceData,
+    }))
+    return invoiceId
+  }
+
   const addOrder = (checkoutId, orderData) => {
     setCheckouts((prev) => ({
       ...prev,
@@ -96,6 +116,19 @@ function App() {
           <Route
             path="/checkout/:vendorId/:checkoutId"
             element={<CheckoutPage vendors={vendors} checkouts={checkouts} onAddOrder={addOrder} />}
+          />
+          <Route
+            path="/invoice/create/:vendorId"
+            element={
+              <InvoiceCreator
+                vendor={vendors[window.location.pathname.split("/")[3]]}
+                onCreateInvoice={createInvoice}
+              />
+            }
+          />
+          <Route
+            path="/invoice/:invoiceId"
+            element={<InvoiceDisplay invoices={invoices} vendor={Object.values(vendors)[0]} />}
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
