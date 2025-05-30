@@ -8,11 +8,10 @@
 
 
 
-
 body {
   margin: 0;
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell",
-    "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans",
+    "Droid Sans", "Helvetica Neue", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -69,82 +68,128 @@ button:focus {
 
 /* Smooth transitions */
 * {
-  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke, opacity, box-shadow,
-    transform;
+  transition-property: color, background-color, border-color, text-decoration-color, fill, stroke;
   transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
   transition-duration: 150ms;
 }
 
-/* Print styles for invoices */
+/* Enhanced Print styles for invoices */
 @media print {
+  /* Reset everything for print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
   body {
     background: white !important;
-    font-size: 12pt;
-    line-height: 1.4;
-  }
-
-  .print\:hidden {
-    display: none !important;
-  }
-
-  .print\:shadow-none {
-    box-shadow: none !important;
-  }
-
-  .print\:border-none {
-    border: none !important;
-  }
-
-  .print\:rounded-none {
-    border-radius: 0 !important;
-  }
-
-  .print\:p-0 {
-    padding: 0 !important;
-  }
-
-  .print\:max-w-none {
-    max-width: none !important;
-  }
-
-  /* Ensure proper page breaks */
-  .invoice-page {
-    page-break-inside: avoid;
+    font-size: 12pt !important;
+    line-height: 1.4 !important;
   }
 
   /* Hide everything except the invoice when printing */
-  body * {
-    visibility: hidden;
+  body.printing * {
+    visibility: hidden !important;
   }
 
-  .invoice-container,
-  .invoice-container * {
-    visibility: visible;
+  body.printing .invoice-container,
+  body.printing .invoice-container * {
+    visibility: visible !important;
   }
 
+  body.printing .invoice-container {
+    position: absolute !important;
+    left: 0 !important;
+    top: 0 !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+  }
+
+  /* Optimize invoice layout for print */
   .invoice-container {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 20pt !important;
+    background: white !important;
+    color: black !important;
   }
 
-  /* Optimize table printing */
-  table {
-    page-break-inside: auto;
+  /* Ensure proper page breaks */
+  .invoice-container h1,
+  .invoice-container h2,
+  .invoice-container h3 {
+    page-break-after: avoid !important;
   }
 
-  tr {
-    page-break-inside: avoid;
-    page-break-after: auto;
+  .invoice-container table {
+    page-break-inside: avoid !important;
   }
 
-  thead {
-    display: table-header-group;
+  .invoice-container tr {
+    page-break-inside: avoid !important;
   }
 
-  tfoot {
-    display: table-footer-group;
+  /* Adjust font sizes for print */
+  .invoice-container h1 {
+    font-size: 18pt !important;
+  }
+
+  .invoice-container h2 {
+    font-size: 16pt !important;
+  }
+
+  .invoice-container h3 {
+    font-size: 14pt !important;
+  }
+
+  .invoice-container p,
+  .invoice-container td,
+  .invoice-container th {
+    font-size: 11pt !important;
+  }
+
+  /* Ensure borders and backgrounds print */
+  .invoice-container table,
+  .invoice-container th,
+  .invoice-container td {
+    border: 1pt solid #000 !important;
+  }
+
+  .invoice-container th {
+    background-color: #f0f0f0 !important;
+    font-weight: bold !important;
+  }
+
+  /* Hide action buttons and non-essential elements */
+  .invoice-container button,
+  .invoice-container .no-print {
+    display: none !important;
+  }
+
+  /* Optimize QR code for print */
+  .invoice-container svg {
+    max-width: 60pt !important;
+    max-height: 60pt !important;
+  }
+
+  /* Ensure proper spacing */
+  .invoice-container .space-y-4 > * + * {
+    margin-top: 12pt !important;
+  }
+
+  .invoice-container .space-y-6 > * + * {
+    margin-top: 18pt !important;
+  }
+
+  /* Print-specific margins */
+  @page {
+    margin: 0.5in !important;
+    size: A4 !important;
   }
 }
 
@@ -159,10 +204,18 @@ button:focus {
   input[type="tel"],
   input[type="email"],
   input[type="number"],
-  input[type="date"],
   textarea {
     font-size: 16px; /* Prevents zoom on iOS */
   }
+}
+
+/* Kenyan business theme colors */
+:root {
+  --kenya-green: #006633;
+  --kenya-red: #cc0000;
+  --kenya-black: #000000;
+  --mpesa-green: #62b526;
+  --safaricom-red: #ff0000;
 }
 
 /* Custom animations for better UX */
@@ -216,156 +269,56 @@ button:not(:disabled):active {
   transform: translateY(0);
 }
 
-/* Form validation styles */
-.error-input {
-  border-color: #ef4444;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .invoice-container {
+    border: 2px solid #000 !important;
+  }
+
+  .invoice-container table,
+  .invoice-container th,
+  .invoice-container td {
+    border: 2px solid #000 !important;
+  }
 }
 
-.success-input {
-  border-color: #10b981;
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
-/* Professional invoice styling */
+/* Better text readability */
 .invoice-container {
-  font-family: "Inter", sans-serif;
-  color: #1f2937;
-  line-height: 1.6;
+  font-feature-settings: "kern" 1, "liga" 1;
+  text-rendering: optimizeLegibility;
 }
 
-.invoice-container h1,
-.invoice-container h2,
-.invoice-container h3,
-.invoice-container h4 {
-  font-weight: 700;
-  color: #111827;
+/* Ensure proper color contrast */
+.invoice-container .text-gray-600 {
+  color: #4b5563 !important;
 }
 
-.invoice-container table {
-  border-collapse: collapse;
-  width: 100%;
+.invoice-container .text-gray-500 {
+  color: #6b7280 !important;
 }
 
-.invoice-container th,
-.invoice-container td {
-  border: 1px solid #d1d5db;
-  padding: 12px;
-  text-align: left;
-}
-
-.invoice-container th {
-  background-color: #f9fafb;
-  font-weight: 600;
-}
-
-/* Responsive table */
-@media (max-width: 768px) {
-  .invoice-table-responsive {
-    font-size: 14px;
+/* Mobile-specific invoice adjustments */
+@media (max-width: 640px) {
+  .invoice-container {
+    padding: 1rem !important;
   }
 
-  .invoice-table-responsive th,
-  .invoice-table-responsive td {
-    padding: 8px 4px;
-  }
-}
-
-/* Dark mode support (optional) */
-@media (prefers-color-scheme: dark) {
-  .dark-mode {
-    background-color: #1f2937;
-    color: #f9fafb;
+  .invoice-container table {
+    font-size: 0.875rem !important;
   }
 
-  .dark-mode .bg-white {
-    background-color: #374151;
+  .invoice-container .text-5xl {
+    font-size: 2.5rem !important;
   }
-
-  .dark-mode .text-gray-900 {
-    color: #f9fafb;
-  }
-
-  .dark-mode .border-gray-200 {
-    border-color: #4b5563;
-  }
-}
-
-/* Utility classes for better spacing */
-.space-y-1 > * + * {
-  margin-top: 0.25rem;
-}
-
-.space-y-2 > * + * {
-  margin-top: 0.5rem;
-}
-
-.space-y-3 > * + * {
-  margin-top: 0.75rem;
-}
-
-.space-y-4 > * + * {
-  margin-top: 1rem;
-}
-
-.space-y-6 > * + * {
-  margin-top: 1.5rem;
-}
-
-/* Professional shadows */
-.shadow-professional {
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-}
-
-.shadow-professional-lg {
-  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-}
-
-/* Invoice specific styles */
-.invoice-header {
-  border-bottom: 3px solid #e5e7eb;
-  margin-bottom: 2rem;
-  padding-bottom: 1.5rem;
-}
-
-.invoice-total-section {
-  background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);
-  border: 2px solid #d1d5db;
-  border-radius: 12px;
-  padding: 1.5rem;
-}
-
-/* Animation for form validation */
-@keyframes shake {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  25% {
-    transform: translateX(-5px);
-  }
-  75% {
-    transform: translateX(5px);
-  }
-}
-
-.shake {
-  animation: shake 0.5s ease-in-out;
-}
-
-/* Success animation */
-@keyframes checkmark {
-  0% {
-    transform: scale(0);
-  }
-  50% {
-    transform: scale(1.2);
-  }
-  100% {
-    transform: scale(1);
-  }
-}
-
-.checkmark-animation {
-  animation: checkmark 0.6s ease-in-out;
 }
