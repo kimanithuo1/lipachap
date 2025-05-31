@@ -17,6 +17,9 @@ import {
   Bell,
   Filter,
   Trash2,
+  CheckCircle,
+  Calendar,
+  Clock,
 } from "lucide-react"
 import QRGenerator from "./QRGenerator"
 
@@ -90,7 +93,27 @@ const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
 
   const totalOrders = filteredOrders.length
   const totalRevenue = filteredOrders.reduce((sum, order) => sum + order.totalAmount, 0)
+  const totalProductsSold = filteredOrders.reduce(
+    (sum, order) => sum + order.items.reduce((itemSum, item) => itemSum + item.quantity, 0),
+    0,
+  )
+  const uniqueCustomers = new Set(filteredOrders.map((order) => order.phone)).size
   const averageOrderValue = totalOrders > 0 ? totalRevenue / totalOrders : 0
+
+  // Get today's orders specifically
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+  const todaysOrders = vendorCheckouts.flatMap((checkout) =>
+    (checkout.orders || []).filter((order) => {
+      const orderDate = new Date(order.timestamp)
+      return orderDate >= todayStart
+    }),
+  )
+
+  // Get pending orders (if any have pending status)
+  const pendingOrders = vendorCheckouts.flatMap((checkout) =>
+    (checkout.orders || []).filter((order) => order.status === "pending"),
+  )
 
   // Mock growth data (in real app, compare with previous period)
   const metrics = {
@@ -108,6 +131,21 @@ const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
       value: totalRevenue,
       growth: 15.2,
       isPositive: true,
+    },
+    productsSold: {
+      value: totalProductsSold,
+      growth: 10.1,
+      isPositive: true,
+    },
+    todaysOrders: {
+      value: todaysOrders.length,
+      growth: 5.0,
+      isPositive: true,
+    },
+    pendingOrders: {
+      value: pendingOrders.length,
+      growth: -20.0,
+      isPositive: false,
     },
     averageOrder: {
       value: averageOrderValue,
@@ -255,7 +293,7 @@ const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
           </div>
         </div>
 
-        {/* Metrics Grid */}
+        {/* Enhanced Metrics Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {/* Total Checkouts */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
@@ -334,6 +372,78 @@ const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
             </div>
           </div>
 
+          {/* Products Sold */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Products Sold</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{metrics.productsSold.value}</p>
+              </div>
+              <div className="bg-purple-50 rounded-full p-3">
+                <TrendingUp className="w-6 h-6 text-purple-600" />
+              </div>
+            </div>
+            <div className="flex items-center mt-4">
+              {metrics.productsSold.isPositive ? (
+                <ArrowUpRight className="w-4 h-4 text-green-500 mr-1" />
+              ) : (
+                <ArrowDownRight className="w-4 h-4 text-red-500 mr-1" />
+              )}
+              <span
+                className={`text-sm font-medium ${metrics.productsSold.isPositive ? "text-green-600" : "text-red-600"}`}
+              >
+                {metrics.productsSold.growth > 0 ? "+" : ""}
+                {metrics.productsSold.growth}%
+              </span>
+              <span className="text-sm text-gray-500 ml-1">vs previous period</span>
+            </div>
+          </div>
+
+          {/* Today's Orders */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Today's Orders</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{metrics.todaysOrders.value}</p>
+              </div>
+              <div className="bg-orange-50 rounded-full p-3">
+                <Calendar className="w-6 h-6 text-orange-600" />
+              </div>
+            </div>
+            <div className="flex items-center mt-4">
+              {metrics.todaysOrders.isPositive ? (
+                <ArrowUpRight className="w-4 h-4 text-green-500 mr-1" />
+              ) : (
+                <ArrowDownRight className="w-4 h-4 text-red-500 mr-1" />
+              )}
+              <span
+                className={`text-sm font-medium ${metrics.todaysOrders.isPositive ? "text-green-600" : "text-red-600"}`}
+              >
+                {metrics.todaysOrders.growth > 0 ? "+" : ""}
+                {metrics.todaysOrders.growth}%
+              </span>
+              <span className="text-sm text-gray-500 ml-1">vs yesterday</span>
+            </div>
+          </div>
+
+          {/* Unique Customers */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Unique Customers</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{uniqueCustomers}</p>
+              </div>
+              <div className="bg-indigo-50 rounded-full p-3">
+                <Users className="w-6 h-6 text-indigo-600" />
+              </div>
+            </div>
+            <div className="flex items-center mt-4">
+              <ArrowUpRight className="w-4 h-4 text-green-500 mr-1" />
+              <span className="text-sm font-medium text-green-600">+15.3%</span>
+              <span className="text-sm text-gray-500 ml-1">new customers</span>
+            </div>
+          </div>
+
           {/* Average Order Value */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
             <div className="flex items-center justify-between">
@@ -343,8 +453,8 @@ const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
                   KES {Math.round(metrics.averageOrder.value).toLocaleString()}
                 </p>
               </div>
-              <div className="bg-purple-50 rounded-full p-3">
-                <TrendingUp className="w-6 h-6 text-purple-600" />
+              <div className="bg-pink-50 rounded-full p-3">
+                <TrendingUp className="w-6 h-6 text-pink-600" />
               </div>
             </div>
             <div className="flex items-center mt-4">
@@ -362,7 +472,109 @@ const Dashboard = ({ vendors, checkouts, onCreateCheckout }) => {
               <span className="text-sm text-gray-500 ml-1">vs previous period</span>
             </div>
           </div>
+
+          {/* Pending Orders */}
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600">Pending Orders</p>
+                <p className="text-2xl font-bold text-gray-900 mt-1">{metrics.pendingOrders.value}</p>
+              </div>
+              <div className="bg-red-50 rounded-full p-3">
+                <Clock className="w-6 h-6 text-red-600" />
+              </div>
+            </div>
+            <div className="flex items-center mt-4">
+              {metrics.pendingOrders.isPositive ? (
+                <ArrowUpRight className="w-4 h-4 text-green-500 mr-1" />
+              ) : (
+                <ArrowDownRight className="w-4 h-4 text-red-500 mr-1" />
+              )}
+              <span
+                className={`text-sm font-medium ${metrics.pendingOrders.isPositive ? "text-green-600" : "text-red-600"}`}
+              >
+                {metrics.pendingOrders.growth > 0 ? "+" : ""}
+                {metrics.pendingOrders.growth}%
+              </span>
+              <span className="text-sm text-gray-500 ml-1">needs attention</span>
+            </div>
+          </div>
         </div>
+
+        {/* Latest Orders Section */}
+        {filteredOrders.length > 0 && (
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-bold text-gray-900">Latest Orders</h3>
+              <span className="text-sm text-gray-500">{filteredOrders.length} total orders</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Date</th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Customer</th>
+                    <th className="text-left py-3 px-2 font-medium text-gray-600">Checkout</th>
+                    <th className="text-right py-3 px-2 font-medium text-gray-600">Amount</th>
+                    <th className="text-center py-3 px-2 font-medium text-gray-600">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredOrders
+                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                    .slice(0, 10)
+                    .map((order, index) => {
+                      const checkout = vendorCheckouts.find((c) => c.id === order.checkoutId)
+                      return (
+                        <tr key={index} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-2">
+                            <div>
+                              <p className="font-medium">{new Date(order.timestamp).toLocaleDateString("en-KE")}</p>
+                              <p className="text-xs text-gray-500">
+                                {new Date(order.timestamp).toLocaleTimeString("en-KE", {
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })}
+                              </p>
+                            </div>
+                          </td>
+                          <td className="py-3 px-2">
+                            <div>
+                              <p className="font-medium">{order.name}</p>
+                              <p className="text-xs text-gray-500">{order.phone}</p>
+                            </div>
+                          </td>
+                          <td className="py-3 px-2">
+                            <p className="font-medium">{checkout?.title || "Unknown"}</p>
+                            <p className="text-xs text-gray-500">{order.items.length} item(s)</p>
+                          </td>
+                          <td className="py-3 px-2 text-right">
+                            <p className="font-bold text-green-600">KES {order.totalAmount.toLocaleString()}</p>
+                            <p className="text-xs text-gray-500">via {order.method}</p>
+                          </td>
+                          <td className="py-3 px-2 text-center">
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              <CheckCircle className="w-3 h-3 mr-1" />
+                              Paid
+                            </span>
+                          </td>
+                        </tr>
+                      )
+                    })}
+                </tbody>
+              </table>
+            </div>
+
+            {filteredOrders.length > 10 && (
+              <div className="mt-4 text-center">
+                <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
+                  View all {filteredOrders.length} orders
+                </button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Create New Checkout Form */}
         {showCreateForm && (

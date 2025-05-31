@@ -1,20 +1,7 @@
 "use client"
 import { useState, useRef } from "react"
-import {
-  Download,
-  Printer,
-  PhoneIcon as WhatsApp,
-  Copy,
-  Calendar,
-  Hash,
-  Share2,
-  Package,
-  Calculator,
-  CheckCircle,
-  AlertCircle,
-} from "lucide-react"
+import { Download, Printer, PhoneIcon as WhatsApp, Copy, Share2, CheckCircle, AlertCircle, Receipt } from "lucide-react"
 import { QRCodeSVG } from "qrcode.react"
-import html2canvas from "html2canvas"
 import jsPDF from "jspdf"
 
 const Invoice = ({ orderData, vendor, checkout }) => {
@@ -26,7 +13,7 @@ const Invoice = ({ orderData, vendor, checkout }) => {
   const invoiceNumber = `INV-${orderData.id}`
   const invoiceDate = new Date(orderData.timestamp).toLocaleDateString("en-KE", {
     year: "numeric",
-    month: "long",
+    month: "short",
     day: "numeric",
   })
   const invoiceTime = new Date(orderData.timestamp).toLocaleTimeString("en-KE", {
@@ -46,63 +33,171 @@ const Invoice = ({ orderData, vendor, checkout }) => {
     setTimeout(() => setNotification(null), 3000)
   }
 
-  // Enhanced PDF generation with better error handling
+  // Optimized PDF generation for receipt-style invoice
   const generatePDF = async () => {
-    if (!invoiceRef.current) {
-      showNotification("Invoice element not found", "error")
-      return
-    }
-
     setIsGenerating(true)
     try {
-      // Wait for all images to load
-      const images = invoiceRef.current.querySelectorAll("img")
-      await Promise.all(
-        Array.from(images).map((img) => {
-          if (img.complete) return Promise.resolve()
-          return new Promise((resolve, reject) => {
-            img.onload = resolve
-            img.onerror = reject
-            // Set a timeout to prevent hanging
-            setTimeout(reject, 5000)
-          })
-        }),
-      )
-
-      // Create canvas with higher quality settings
-      const canvas = await html2canvas(invoiceRef.current, {
-        scale: 2,
-        useCORS: true,
-        allowTaint: false,
-        backgroundColor: "#ffffff",
-        logging: false,
-        imageTimeout: 10000,
-        removeContainer: true,
+      // Create PDF with receipt dimensions (80mm width)
+      const pdf = new jsPDF({
+        orientation: "portrait",
+        unit: "mm",
+        format: [80, 200], // 80mm width, 200mm height (thermal receipt size)
       })
 
-      // Create PDF with proper sizing
-      const imgData = canvas.toDataURL("image/png", 1.0)
-      const pdf = new jsPDF("p", "mm", "a4")
+      // Set font
+      pdf.setFont("helvetica")
 
-      const pdfWidth = pdf.internal.pageSize.getWidth()
-      const pdfHeight = pdf.internal.pageSize.getHeight()
-      const imgWidth = pdfWidth
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width
+      let yPos = 10
+      const pageWidth = 80
+      const margin = 5
+      const contentWidth = pageWidth - margin * 2
 
-      let heightLeft = imgHeight
-      let position = 0
+      // Header - Business Info
+      pdf.setFontSize(14)
+      pdf.setFont("helvetica", "bold")
+      const businessName = vendor.businessName.toUpperCase()
+      const businessNameWidth = pdf.getTextWidth(businessName)
+      pdf.text(businessName, (pageWidth - businessNameWidth) / 2, yPos)
+      yPos += 6
 
-      // Add first page
-      pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight)
-      heightLeft -= pdfHeight
+      pdf.setFontSize(8)
+      pdf.setFont("helvetica", "normal")
 
-      // Add additional pages if needed
-      while (heightLeft >= 0) {
-        position = heightLeft - imgHeight
-        pdf.addPage()
-        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight)
-        heightLeft -= pdfHeight
+      // Contact info
+      if (vendor.phone) {
+        const phoneText = `Tel: ${vendor.phone}`
+        const phoneWidth = pdf.getTextWidth(phoneText)
+        pdf.text(phoneText, (pageWidth - phoneWidth) / 2, yPos)
+        yPos += 4
       }
+
+      if (vendor.email) {
+        const emailText = vendor.email
+        const emailWidth = pdf.getTextWidth(emailText)
+        pdf.text(emailText, (pageWidth - emailWidth) / 2, yPos)
+        yPos += 4
+      }
+
+      // Separator line
+      yPos += 2
+      pdf.line(margin, yPos, pageWidth - margin, yPos)
+      yPos += 4
+
+      // Invoice details
+      pdf.setFontSize(10)
+      pdf.setFont("helvetica", "bold")
+      pdf.text("INVOICE", margin, yPos)
+      pdf.setFont("helvetica", "normal")
+      pdf.text(invoiceNumber, pageWidth - margin - pdf.getTextWidth(invoiceNumber), yPos)
+      yPos += 5
+
+      pdf.setFontSize(8)
+      pdf.text(`Date: ${invoiceDate} ${invoiceTime}`, margin, yPos)
+      yPos += 4
+
+      // Customer info
+      pdf.text(`Customer: ${orderData.name}`, margin, yPos)
+      yPos += 4
+      pdf.text(`Phone: ${orderData.phone}`, margin, yPos)
+      yPos += 6
+
+      // Separator line
+      pdf.line(margin, yPos, pageWidth - margin, yPos)
+      yPos += 4
+
+      // Items header
+      pdf.setFontSize(8)
+      pdf.setFont("helvetica", "bold")
+      pdf.text("ITEM", margin, yPos)
+      pdf.text("QTY", 45, yPos)
+      pdf.text("PRICE", 55, yPos)
+      pdf.text("TOTAL", 65, yPos)
+      yPos += 3
+
+      pdf.line(margin, yPos, pageWidth - margin, yPos)
+      yPos += 3
+
+      // Items
+      pdf.setFont("helvetica", "normal")
+      orderData.items.forEach((item) => {
+        // Item name (truncate if too long)
+        let itemName = item.name
+        if (pdf.getTextWidth(itemName) > 35) {
+          while (pdf.getTextWidth(itemName + "...") > 35 && itemName.length > 10) {
+            itemName = itemName.slice(0, -1)
+          }
+          itemName += "..."
+        }
+
+        pdf.text(itemName, margin, yPos)
+        pdf.text(item.quantity.toString(), 47, yPos)
+        pdf.text(item.price.toLocaleString(), 55, yPos)
+        pdf.text(item.total.toLocaleString(), 65, yPos)
+        yPos += 4
+      })
+
+      // Separator line
+      yPos += 2
+      pdf.line(margin, yPos, pageWidth - margin, yPos)
+      yPos += 4
+
+      // Totals
+      pdf.setFont("helvetica", "normal")
+      pdf.text(`Subtotal:`, margin, yPos)
+      pdf.text(
+        `KES ${subtotal.toLocaleString()}`,
+        pageWidth - margin - pdf.getTextWidth(`KES ${subtotal.toLocaleString()}`),
+        yPos,
+      )
+      yPos += 4
+
+      if (taxAmount > 0) {
+        pdf.text(`Tax:`, margin, yPos)
+        pdf.text(
+          `KES ${taxAmount.toLocaleString()}`,
+          pageWidth - margin - pdf.getTextWidth(`KES ${taxAmount.toLocaleString()}`),
+          yPos,
+        )
+        yPos += 4
+      }
+
+      // Total (bold and larger)
+      pdf.setFontSize(10)
+      pdf.setFont("helvetica", "bold")
+      pdf.text(`TOTAL:`, margin, yPos)
+      const totalText = `KES ${finalTotal.toLocaleString()}`
+      pdf.text(totalText, pageWidth - margin - pdf.getTextWidth(totalText), yPos)
+      yPos += 6
+
+      // Payment status
+      pdf.setFontSize(8)
+      pdf.setFont("helvetica", "bold")
+      const statusText = `PAYMENT: ${orderData.method.toUpperCase()} - PAID`
+      const statusWidth = pdf.getTextWidth(statusText)
+      pdf.text(statusText, (pageWidth - statusWidth) / 2, yPos)
+      yPos += 6
+
+      // Transaction ID
+      pdf.setFont("helvetica", "normal")
+      const txnText = `TXN: ${orderData.transactionId}`
+      const txnWidth = pdf.getTextWidth(txnText)
+      pdf.text(txnText, (pageWidth - txnWidth) / 2, yPos)
+      yPos += 8
+
+      // Thank you message
+      pdf.setFontSize(8)
+      pdf.setFont("helvetica", "italic")
+      const thankYouText = "Thank you for your business!"
+      const thankYouWidth = pdf.getTextWidth(thankYouText)
+      pdf.text(thankYouText, (pageWidth - thankYouWidth) / 2, yPos)
+      yPos += 6
+
+      // Footer
+      pdf.setFontSize(6)
+      pdf.setFont("helvetica", "normal")
+      const footerText = "Powered by LipaChap"
+      const footerWidth = pdf.getTextWidth(footerText)
+      pdf.text(footerText, (pageWidth - footerWidth) / 2, yPos)
 
       // Download with descriptive filename
       const filename = `${invoiceNumber}-${vendor.businessName.replace(/\s+/g, "-")}-${new Date().toISOString().split("T")[0]}.pdf`
@@ -117,7 +212,7 @@ const Invoice = ({ orderData, vendor, checkout }) => {
     }
   }
 
-  // Enhanced share functionality with Web Share API
+  // Enhanced share functionality
   const shareInvoice = async () => {
     setIsSharing(true)
 
@@ -132,7 +227,6 @@ const Invoice = ({ orderData, vendor, checkout }) => {
         await navigator.share(shareData)
         showNotification("Invoice shared successfully! 📤")
       } else {
-        // Fallback to WhatsApp
         shareViaWhatsApp()
       }
     } catch (error) {
@@ -163,7 +257,7 @@ ${orderData.items
 📞 Contact: ${vendor.phone}
 ${vendor.email ? `📧 Email: ${vendor.email}` : ""}
 
-🚀 Powered by LipaChap - Professional Invoice Solutions`
+🚀 Powered by LipaChap`
 
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`
     window.open(whatsappUrl, "_blank")
@@ -175,7 +269,6 @@ ${vendor.email ? `📧 Email: ${vendor.email}` : ""}
       await navigator.clipboard.writeText(window.location.href)
       showNotification("Invoice link copied to clipboard! 📋")
     } catch (error) {
-      // Fallback for older browsers
       const textArea = document.createElement("textarea")
       textArea.value = window.location.href
       document.body.appendChild(textArea)
@@ -187,17 +280,7 @@ ${vendor.email ? `📧 Email: ${vendor.email}` : ""}
   }
 
   const printInvoice = () => {
-    // Add print-specific class to body
-    document.body.classList.add("printing")
-
-    // Trigger print
     window.print()
-
-    // Remove print class after print dialog
-    setTimeout(() => {
-      document.body.classList.remove("printing")
-    }, 1000)
-
     showNotification("Print dialog opened! 🖨️")
   }
 
@@ -223,262 +306,167 @@ ${vendor.email ? `📧 Email: ${vendor.email}` : ""}
         </div>
       )}
 
-      {/* Enhanced Invoice Display */}
+      {/* Receipt-Style Invoice Display */}
       <div
         ref={invoiceRef}
-        className="bg-white rounded-2xl shadow-xl border border-gray-200 overflow-hidden invoice-container"
-        style={{ minHeight: "800px" }}
+        className="bg-white rounded-lg shadow-lg border border-gray-200 max-w-sm mx-auto p-6 font-mono text-sm"
+        style={{ width: "320px" }} // Approximate 80mm width
       >
-        {/* Professional Header */}
-        <div className="bg-gradient-to-r from-purple-600 to-pink-600 text-white p-8">
-          <div className="flex items-start justify-between">
-            <div className="flex items-center">
-              {vendor.logo && (
-                <img
-                  src={vendor.logo || "/placeholder.svg"}
-                  alt={`${vendor.businessName} logo`}
-                  className="w-20 h-20 rounded-full object-cover mr-6 border-4 border-white shadow-lg"
-                />
-              )}
-              <div>
-                <h1 className="text-3xl font-bold mb-2">{vendor.businessName}</h1>
-                <p className="text-purple-100 text-lg">{vendor.ownerName}</p>
-                <div className="mt-2 space-y-1">
-                  <p className="text-purple-100 flex items-center">📞 {vendor.phone}</p>
-                  {vendor.email && <p className="text-purple-100 flex items-center">📧 {vendor.email}</p>}
-                </div>
-              </div>
-            </div>
+        {/* Header */}
+        <div className="text-center border-b border-gray-300 pb-4 mb-4">
+          <h1 className="text-lg font-bold uppercase">{vendor.businessName}</h1>
+          <p className="text-xs text-gray-600">{vendor.phone}</p>
+          {vendor.email && <p className="text-xs text-gray-600">{vendor.email}</p>}
+        </div>
 
-            <div className="text-right bg-white/10 backdrop-blur-sm rounded-xl p-6">
-              <div className="flex items-center mb-3">
-                <Hash className="w-6 h-6 mr-2" />
-                <span className="text-lg font-semibold">INVOICE</span>
-              </div>
-              <p className="text-2xl font-bold">{invoiceNumber}</p>
-              <div className="mt-3 space-y-1 text-sm text-purple-100">
-                <p className="flex items-center">
-                  <Calendar className="w-4 h-4 mr-2" />
-                  {invoiceDate}
-                </p>
-                <p>{invoiceTime}</p>
-              </div>
-            </div>
+        {/* Invoice Details */}
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <p className="font-bold">INVOICE</p>
+            <p className="text-xs text-gray-600">{invoiceNumber}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-xs">{invoiceDate}</p>
+            <p className="text-xs">{invoiceTime}</p>
           </div>
         </div>
 
-        {/* Invoice Content */}
-        <div className="p-8">
-          {/* Customer & Payment Info */}
-          <div className="grid md:grid-cols-2 gap-8 mb-8">
-            <div className="bg-gray-50 rounded-xl p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center border-b border-gray-200 pb-2">
-                👤 BILL TO
-              </h3>
-              <div className="space-y-2">
-                <p className="font-semibold text-gray-900 text-lg">{orderData.name}</p>
-                <p className="text-gray-600 flex items-center">📞 {orderData.phone}</p>
-                {orderData.email && <p className="text-gray-600 flex items-center">📧 {orderData.email}</p>}
-              </div>
-            </div>
+        {/* Customer Info */}
+        <div className="mb-4 pb-2 border-b border-gray-200">
+          <p className="text-xs">
+            <strong>Customer:</strong> {orderData.name}
+          </p>
+          <p className="text-xs">
+            <strong>Phone:</strong> {orderData.phone}
+          </p>
+        </div>
 
-            <div className="bg-blue-50 rounded-xl p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center border-b border-blue-200 pb-2">
-                💳 PAYMENT DETAILS
-              </h3>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Method:</span>
-                  <span className="font-semibold text-gray-900 uppercase">{orderData.method}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Transaction ID:</span>
-                  <span className="font-mono text-sm text-gray-900">{orderData.transactionId}</span>
-                </div>
-                {orderData.mpesaPhone && (
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">M-Pesa Number:</span>
-                    <span className="font-semibold text-gray-900">{orderData.mpesaPhone}</span>
-                  </div>
-                )}
-                <div className="flex justify-between items-center pt-2 border-t border-blue-200">
-                  <span className="text-gray-600">Status:</span>
-                  <span className="px-3 py-1 bg-green-100 text-green-800 text-sm font-semibold rounded-full flex items-center">
-                    <CheckCircle className="w-4 h-4 mr-1" />
-                    PAID
-                  </span>
-                </div>
-              </div>
-            </div>
+        {/* Items Table */}
+        <div className="mb-4">
+          <div className="flex justify-between text-xs font-bold border-b border-gray-300 pb-1 mb-2">
+            <span>ITEM</span>
+            <span>QTY</span>
+            <span>PRICE</span>
+            <span>TOTAL</span>
           </div>
 
-          {/* Enhanced Items Table */}
-          <div className="mb-8">
-            <h3 className="text-xl font-bold text-gray-900 mb-6 flex items-center">
-              <Package className="w-6 h-6 mr-2 text-purple-600" />
-              ITEMS PURCHASED
-            </h3>
-
-            <div className="overflow-x-auto bg-gray-50 rounded-xl">
-              <table className="w-full border-collapse">
-                <thead>
-                  <tr className="bg-gradient-to-r from-purple-100 to-pink-100">
-                    <th className="border border-gray-200 px-6 py-4 text-left font-bold text-gray-900">
-                      Product Details
-                    </th>
-                    <th className="border border-gray-200 px-6 py-4 text-center font-bold text-gray-900">Quantity</th>
-                    <th className="border border-gray-200 px-6 py-4 text-right font-bold text-gray-900">Unit Price</th>
-                    <th className="border border-gray-200 px-6 py-4 text-right font-bold text-gray-900">Total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {orderData.items.map((item, index) => (
-                    <tr key={index} className="hover:bg-white transition-colors duration-200">
-                      <td className="border border-gray-200 px-6 py-4">
-                        <div>
-                          <p className="font-semibold text-gray-900 text-lg">{item.name}</p>
-                          {item.description && <p className="text-sm text-gray-600 mt-1">{item.description}</p>}
-                        </div>
-                      </td>
-                      <td className="border border-gray-200 px-6 py-4 text-center">
-                        <span className="bg-purple-100 text-purple-800 px-3 py-1 rounded-full font-bold">
-                          {item.quantity}
-                        </span>
-                      </td>
-                      <td className="border border-gray-200 px-6 py-4 text-right font-semibold text-gray-900">
-                        KES {Number(item.price).toLocaleString()}
-                      </td>
-                      <td className="border border-gray-200 px-6 py-4 text-right font-bold text-purple-600 text-lg">
-                        KES {item.total.toLocaleString()}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {orderData.items.map((item, index) => (
+            <div key={index} className="flex justify-between text-xs mb-1">
+              <span className="flex-1 truncate pr-2">{item.name}</span>
+              <span className="w-8 text-center">{item.quantity}</span>
+              <span className="w-12 text-right">{item.price.toLocaleString()}</span>
+              <span className="w-12 text-right">{item.total.toLocaleString()}</span>
             </div>
+          ))}
+        </div>
+
+        {/* Totals */}
+        <div className="border-t border-gray-300 pt-2 mb-4">
+          <div className="flex justify-between text-xs mb-1">
+            <span>Subtotal:</span>
+            <span>KES {subtotal.toLocaleString()}</span>
           </div>
-
-          {/* Enhanced Total Section */}
-          <div className="flex flex-col lg:flex-row justify-between items-end gap-8 mb-8">
-            {/* Summary Stats */}
-            <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="bg-blue-50 rounded-xl p-6 border border-blue-200">
-                <div className="flex items-center">
-                  <Package className="w-8 h-8 text-blue-600 mr-3" />
-                  <div>
-                    <p className="text-sm text-blue-600 font-semibold">Total Products</p>
-                    <p className="text-2xl font-bold text-blue-900">{totalProducts}</p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-purple-50 rounded-xl p-6 border border-purple-200">
-                <div className="flex items-center">
-                  <Calculator className="w-8 h-8 text-purple-600 mr-3" />
-                  <div>
-                    <p className="text-sm text-purple-600 font-semibold">Product Types</p>
-                    <p className="text-2xl font-bold text-purple-900">{orderData.items.length}</p>
-                  </div>
-                </div>
-              </div>
+          {taxAmount > 0 && (
+            <div className="flex justify-between text-xs mb-1">
+              <span>Tax:</span>
+              <span>KES {taxAmount.toLocaleString()}</span>
             </div>
-
-            {/* Total Amount */}
-            <div className="bg-gradient-to-r from-green-100 to-emerald-100 rounded-2xl p-8 border-2 border-green-200 min-w-[300px]">
-              <div className="text-center">
-                <p className="text-lg text-green-800 mb-2 font-semibold">TOTAL AMOUNT</p>
-                <p className="text-5xl font-bold text-green-900 mb-2">KES {finalTotal.toLocaleString()}</p>
-                <div className="space-y-1 text-sm text-green-700">
-                  <p>Subtotal: KES {subtotal.toLocaleString()}</p>
-                  {taxAmount > 0 && <p>Tax: KES {taxAmount.toLocaleString()}</p>}
-                  <p className="font-bold border-t border-green-300 pt-2">✅ Amount Paid in Full</p>
-                </div>
-              </div>
-            </div>
+          )}
+          <div className="flex justify-between font-bold text-sm border-t border-gray-300 pt-1">
+            <span>TOTAL:</span>
+            <span>KES {finalTotal.toLocaleString()}</span>
           </div>
+        </div>
 
-          {/* Footer with QR Code and Thank You */}
-          <div className="flex flex-col lg:flex-row justify-between items-end pt-8 border-t-2 border-gray-200 gap-8">
-            <div className="flex-1">
-              <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border border-purple-200">
-                <h4 className="font-bold text-purple-900 mb-3 text-lg">🙏 Thank You!</h4>
-                <div className="space-y-2 text-purple-800">
-                  <p className="font-semibold">Thank you for shopping with {vendor.businessName}</p>
-                  <p className="text-sm">We appreciate your business and look forward to serving you again.</p>
-                  <div className="mt-4 pt-4 border-t border-purple-200">
-                    <p className="text-sm font-semibold">📞 For any queries, contact us:</p>
-                    <p className="text-sm">Phone: {vendor.phone}</p>
-                    {vendor.email && <p className="text-sm">Email: {vendor.email}</p>}
-                  </div>
-                </div>
-                <p className="text-xs text-purple-600 mt-4 font-semibold">
-                  🚀 Powered by LipaChap - Professional Invoice Solutions
-                </p>
-              </div>
-            </div>
+        {/* Payment Status */}
+        <div className="text-center mb-4 p-2 bg-green-50 rounded border border-green-200">
+          <p className="text-xs font-bold text-green-800">PAYMENT: {orderData.method.toUpperCase()} - PAID ✓</p>
+          <p className="text-xs text-green-600">TXN: {orderData.transactionId}</p>
+        </div>
 
-            <div className="text-center">
-              <div className="bg-white p-4 rounded-xl border-2 border-gray-200 shadow-lg">
-                <QRCodeSVG value={window.location.href} size={100} level="M" includeMargin={true} className="mx-auto" />
-                <p className="text-xs text-gray-600 mt-3 font-semibold">📱 Scan for Digital Copy</p>
-              </div>
-            </div>
-          </div>
+        {/* QR Code */}
+        <div className="text-center mb-4">
+          <QRCodeSVG value={window.location.href} size={60} level="M" className="mx-auto" />
+          <p className="text-xs text-gray-500 mt-1">Scan for digital copy</p>
+        </div>
+
+        {/* Footer */}
+        <div className="text-center border-t border-gray-300 pt-2">
+          <p className="text-xs italic text-gray-600">Thank you for your business!</p>
+          <p className="text-xs text-gray-500 mt-1">Powered by LipaChap</p>
         </div>
       </div>
 
-      {/* Enhanced Action Buttons */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* Action Buttons */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 max-w-2xl mx-auto">
         <button
           onClick={generatePDF}
           disabled={isGenerating}
-          className="bg-gradient-to-r from-red-500 to-red-600 text-white py-4 px-6 rounded-xl font-bold hover:from-red-600 hover:to-red-700 transition-all duration-300 flex items-center justify-center shadow-lg transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+          className="bg-red-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-red-700 transition-colors flex items-center justify-center shadow-sm disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          <Download className="w-5 h-5 mr-2" />
+          <Download className="w-4 h-4 mr-2" />
           {isGenerating ? "Generating..." : "Download PDF"}
+        </button>
+
+        <button
+          onClick={printInvoice}
+          className="bg-blue-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-blue-700 transition-colors flex items-center justify-center shadow-sm"
+        >
+          <Printer className="w-4 h-4 mr-2" />
+          Print
         </button>
 
         <button
           onClick={shareInvoice}
           disabled={isSharing}
-          className="bg-gradient-to-r from-blue-500 to-blue-600 text-white py-4 px-6 rounded-xl font-bold hover:from-blue-600 hover:to-blue-700 transition-all duration-300 flex items-center justify-center shadow-lg transform hover:scale-105 disabled:opacity-50"
+          className="bg-green-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-green-700 transition-colors flex items-center justify-center shadow-sm disabled:opacity-50"
         >
-          <Share2 className="w-5 h-5 mr-2" />
+          <Share2 className="w-4 h-4 mr-2" />
           {isSharing ? "Sharing..." : "Share"}
         </button>
 
         <button
-          onClick={shareViaWhatsApp}
-          className="bg-gradient-to-r from-green-500 to-green-600 text-white py-4 px-6 rounded-xl font-bold hover:from-green-600 hover:to-green-700 transition-all duration-300 flex items-center justify-center shadow-lg transform hover:scale-105"
-        >
-          <WhatsApp className="w-5 h-5 mr-2" />
-          WhatsApp
-        </button>
-
-        <button
           onClick={copyInvoiceLink}
-          className="bg-gradient-to-r from-gray-500 to-gray-600 text-white py-4 px-6 rounded-xl font-bold hover:from-gray-600 hover:to-gray-700 transition-all duration-300 flex items-center justify-center shadow-lg transform hover:scale-105"
+          className="bg-gray-600 text-white py-3 px-4 rounded-lg font-medium hover:bg-gray-700 transition-colors flex items-center justify-center shadow-sm"
         >
-          <Copy className="w-5 h-5 mr-2" />
+          <Copy className="w-4 h-4 mr-2" />
           Copy Link
         </button>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-4">
+      {/* WhatsApp Share Button */}
+      <div className="text-center">
         <button
-          onClick={printInvoice}
-          className="bg-gradient-to-r from-purple-500 to-purple-600 text-white py-4 px-6 rounded-xl font-bold hover:from-purple-600 hover:to-purple-700 transition-all duration-300 flex items-center justify-center shadow-lg transform hover:scale-105"
+          onClick={shareViaWhatsApp}
+          className="bg-green-500 text-white py-3 px-6 rounded-lg font-medium hover:bg-green-600 transition-colors flex items-center justify-center mx-auto shadow-sm"
         >
-          <Printer className="w-5 h-5 mr-2" />
-          Print Invoice
+          <WhatsApp className="w-5 h-5 mr-2" />
+          Share via WhatsApp
         </button>
+      </div>
 
-        <div className="bg-gradient-to-r from-yellow-50 to-orange-50 rounded-xl p-4 border border-yellow-200 flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-sm font-semibold text-yellow-800">Invoice #{invoiceNumber}</p>
-            <p className="text-xs text-yellow-600">
-              Generated on {invoiceDate} at {invoiceTime}
-            </p>
+      {/* Invoice Details Summary */}
+      <div className="bg-gray-50 rounded-lg p-4 max-w-md mx-auto">
+        <h4 className="font-semibold text-gray-800 mb-2 flex items-center">
+          <Receipt className="w-4 h-4 mr-2" />
+          Invoice Summary
+        </h4>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-gray-600">Invoice ID:</p>
+            <p className="font-medium">{invoiceNumber}</p>
+          </div>
+          <div>
+            <p className="text-gray-600">Date:</p>
+            <p className="font-medium">{invoiceDate}</p>
+          </div>
+          <div>
+            <p className="text-gray-600">Items:</p>
+            <p className="font-medium">{totalProducts} product(s)</p>
+          </div>
+          <div>
+            <p className="text-gray-600">Total:</p>
+            <p className="font-medium text-green-600">KES {finalTotal.toLocaleString()}</p>
           </div>
         </div>
       </div>
