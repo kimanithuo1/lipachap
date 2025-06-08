@@ -1,4 +1,10 @@
 User-agent: *
 Allow: /
+Disallow: /dashboard/
+Disallow: /checkout/
 
+# Sitemap
 Sitemap: https://lipachap.vercel.app/sitemap.xml
+
+# Crawl-delay
+Crawl-delay: 1

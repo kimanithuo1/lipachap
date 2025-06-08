@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import {
   FileText,
@@ -14,17 +14,115 @@ import {
   Smartphone,
   Clock,
   TrendingUp,
+  AlertCircle,
 } from "lucide-react"
 import InvoiceGenerator from "./InvoiceGenerator"
+import Toast from "./Toast"
 
 const LandingPage = ({ onCreateVendor }) => {
   const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState("invoice") // invoice or checkout
   const [showInvoiceForm, setShowInvoiceForm] = useState(false)
+  const [quickInvoiceData, setQuickInvoiceData] = useState({
+    businessName: "",
+    clientName: "",
+    invoiceDate: new Date().toISOString().split("T")[0],
+    amount: "",
+  })
+  const [validationErrors, setValidationErrors] = useState({})
+  const [toast, setToast] = useState({ show: false, message: "", type: "success" })
+
+  const showToast = (message, type = "success") => {
+    setToast({ show: true, message, type })
+  }
+
+  const hideToast = () => {
+    setToast({ show: false, message: "", type: "success" })
+  }
+
+  const validateQuickForm = () => {
+    const errors = {}
+    if (!quickInvoiceData.businessName.trim()) errors.businessName = "Business name is required"
+    if (!quickInvoiceData.clientName.trim()) errors.clientName = "Client name is required"
+    if (!quickInvoiceData.amount || quickInvoiceData.amount <= 0) errors.amount = "Valid amount is required"
+    if (!quickInvoiceData.invoiceDate) errors.invoiceDate = "Invoice date is required"
+
+    setValidationErrors(errors)
+    return Object.keys(errors).length === 0
+  }
+
+  const handleQuickGenerate = () => {
+    if (validateQuickForm()) {
+      // Pre-populate the full invoice generator with quick form data
+      const invoiceData = {
+        businessName: quickInvoiceData.businessName,
+        businessAddress: "",
+        businessPhone: "",
+        businessEmail: "",
+        businessLogo: null,
+        clientName: quickInvoiceData.clientName,
+        clientAddress: "",
+        clientPhone: "",
+        clientEmail: "",
+        invoiceNumber: `INV-${Date.now().toString().slice(-6)}`,
+        invoiceDate: quickInvoiceData.invoiceDate,
+        dueDate: "",
+        items: [
+          {
+            id: 1,
+            description: "Service/Product",
+            quantity: 1,
+            rate: Number(quickInvoiceData.amount),
+            amount: Number(quickInvoiceData.amount),
+          },
+        ],
+        subtotal: Number(quickInvoiceData.amount),
+        tax: 0,
+        total: Number(quickInvoiceData.amount),
+        notes: "",
+        terms: "Payment is due within 30 days of invoice date.",
+      }
+
+      // Save to localStorage for the invoice generator
+      localStorage.setItem("lipachap-invoice-draft", JSON.stringify(invoiceData))
+
+      setShowInvoiceForm(true)
+      setValidationErrors({})
+      showToast("Invoice data loaded! Complete the details to generate your professional invoice.", "success")
+
+      // Track quick start event
+      if (typeof window !== "undefined" && typeof window.gtag !== "undefined") {
+        window.gtag("event", "quick_start", {
+          event_category: "invoice",
+          event_label: "landing_page",
+        })
+      }
+    } else {
+      showToast("Please fill in all required fields", "error")
+    }
+  }
 
   const handleCreateCheckout = () => {
     navigate("/vendor-setup")
   }
+
+  // Load saved quick form data
+  useEffect(() => {
+    const saved = localStorage.getItem("lipachap-quick-invoice")
+    if (saved) {
+      try {
+        const data = JSON.parse(saved)
+        setQuickInvoiceData((prev) => ({ ...prev, ...data }))
+      } catch (e) {
+        console.error("Failed to load saved quick invoice data")
+      }
+    }
+  }, [])
+
+  // Save quick form data
+  useEffect(() => {
+    localStorage.setItem("lipachap-quick-invoice", JSON.stringify(quickInvoiceData))
+  }, [quickInvoiceData])
 
   const features = [
     {
@@ -90,32 +188,8 @@ const LandingPage = ({ onCreateVendor }) => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50">
-      {/* Header */}
-      <header className="bg-white/80 backdrop-blur-sm border-b border-purple-100 sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            <div className="flex items-center">
-              <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-full w-10 h-10 flex items-center justify-center mr-3">
-                <FileText className="w-6 h-6 text-white" />
-              </div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
-                LipaChap
-              </h1>
-            </div>
-            <nav className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-gray-600 hover:text-purple-600 transition-colors">
-                Features
-              </a>
-              <a href="#how-it-works" className="text-gray-600 hover:text-purple-600 transition-colors">
-                How it Works
-              </a>
-              <a href="#testimonials" className="text-gray-600 hover:text-purple-600 transition-colors">
-                Reviews
-              </a>
-            </nav>
-          </div>
-        </div>
-      </header>
+      {/* Toast Notifications */}
+      <Toast message={toast.message} type={toast.type} isVisible={toast.show} onClose={hideToast} />
 
       {/* Hero Section */}
       <section className="pt-16 pb-20 px-4 sm:px-6 lg:px-8">
@@ -190,18 +264,38 @@ const LandingPage = ({ onCreateVendor }) => {
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Business Name *</label>
                         <input
                           type="text"
+                          value={quickInvoiceData.businessName}
+                          onChange={(e) => setQuickInvoiceData((prev) => ({ ...prev, businessName: e.target.value }))}
+                          className={`w-full px-4 py-4 border-2 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg ${
+                            validationErrors.businessName ? "border-red-400 bg-red-50" : "border-gray-200"
+                          }`}
                           placeholder="e.g. Sarah's Beauty Salon"
-                          className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg"
                         />
+                        {validationErrors.businessName && (
+                          <p className="text-red-600 text-sm mt-1 flex items-center">
+                            <AlertCircle className="w-4 h-4 mr-1" />
+                            {validationErrors.businessName}
+                          </p>
+                        )}
                       </div>
 
                       <div className="group">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Client Name *</label>
                         <input
                           type="text"
+                          value={quickInvoiceData.clientName}
+                          onChange={(e) => setQuickInvoiceData((prev) => ({ ...prev, clientName: e.target.value }))}
+                          className={`w-full px-4 py-4 border-2 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg ${
+                            validationErrors.clientName ? "border-red-400 bg-red-50" : "border-gray-200"
+                          }`}
                           placeholder="e.g. John Doe"
-                          className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg"
                         />
+                        {validationErrors.clientName && (
+                          <p className="text-red-600 text-sm mt-1 flex items-center">
+                            <AlertCircle className="w-4 h-4 mr-1" />
+                            {validationErrors.clientName}
+                          </p>
+                        )}
                       </div>
                     </div>
 
@@ -210,24 +304,43 @@ const LandingPage = ({ onCreateVendor }) => {
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Invoice Date *</label>
                         <input
                           type="date"
-                          defaultValue={new Date().toISOString().split("T")[0]}
-                          className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg"
+                          value={quickInvoiceData.invoiceDate}
+                          onChange={(e) => setQuickInvoiceData((prev) => ({ ...prev, invoiceDate: e.target.value }))}
+                          className={`w-full px-4 py-4 border-2 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg ${
+                            validationErrors.invoiceDate ? "border-red-400 bg-red-50" : "border-gray-200"
+                          }`}
                         />
+                        {validationErrors.invoiceDate && (
+                          <p className="text-red-600 text-sm mt-1 flex items-center">
+                            <AlertCircle className="w-4 h-4 mr-1" />
+                            {validationErrors.invoiceDate}
+                          </p>
+                        )}
                       </div>
 
                       <div className="group">
                         <label className="block text-sm font-semibold text-gray-700 mb-2">Amount (KES) *</label>
                         <input
                           type="number"
+                          value={quickInvoiceData.amount}
+                          onChange={(e) => setQuickInvoiceData((prev) => ({ ...prev, amount: e.target.value }))}
                           placeholder="5000"
                           min="1"
-                          className="w-full px-4 py-4 border-2 border-gray-200 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg"
+                          className={`w-full px-4 py-4 border-2 rounded-xl focus:ring-4 focus:ring-purple-200 focus:border-purple-400 transition-all duration-300 group-hover:border-purple-300 text-lg ${
+                            validationErrors.amount ? "border-red-400 bg-red-50" : "border-gray-200"
+                          }`}
                         />
+                        {validationErrors.amount && (
+                          <p className="text-red-600 text-sm mt-1 flex items-center">
+                            <AlertCircle className="w-4 h-4 mr-1" />
+                            {validationErrors.amount}
+                          </p>
+                        )}
                       </div>
                     </div>
 
                     <button
-                      onClick={() => setShowInvoiceForm(true)}
+                      onClick={handleQuickGenerate}
                       className="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white py-4 px-6 rounded-xl font-bold hover:from-purple-600 hover:to-pink-600 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105 text-lg flex items-center justify-center"
                     >
                       Generate Invoice
@@ -327,9 +440,9 @@ const LandingPage = ({ onCreateVendor }) => {
             <p className="text-xl text-gray-600">Get started in just 3 simple steps</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
+          <div className="grid md:grid-cols-3 gap-8 relative">
             {steps.map((step, index) => (
-              <div key={index} className="text-center">
+              <div key={index} className="text-center relative">
                 <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-full w-16 h-16 flex items-center justify-center mx-auto mb-6 text-white text-2xl font-bold shadow-lg">
                   {step.number}
                 </div>
@@ -408,100 +521,7 @@ const LandingPage = ({ onCreateVendor }) => {
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid md:grid-cols-4 gap-8">
-            <div className="md:col-span-2">
-              <div className="flex items-center mb-4">
-                <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-full w-10 h-10 flex items-center justify-center mr-3">
-                  <FileText className="w-6 h-6 text-white" />
-                </div>
-                <h3 className="text-2xl font-bold">LipaChap</h3>
-              </div>
-              <p className="text-gray-400 mb-6 max-w-md">
-                Empowering Kenyan entrepreneurs with professional invoice generation and checkout page creation tools.
-                100% free, secure, and designed for local businesses.
-              </p>
-              <div className="flex space-x-4">
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                  <span className="sr-only">LinkedIn</span>
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                  </svg>
-                </a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                  <span className="sr-only">Instagram</span>
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12.017 0C5.396 0 .029 5.367.029 11.987c0 6.62 5.367 11.987 11.988 11.987s11.987-5.367 11.987-11.987C24.014 5.367 18.647.001 12.017.001zM8.449 16.988c-1.297 0-2.448-.49-3.323-1.297C4.198 14.895 3.708 13.744 3.708 12.447s.49-2.448 1.418-3.323c.875-.807 2.026-1.297 3.323-1.297s2.448.49 3.323 1.297c.928.875 1.418 2.026 1.418 3.323s-.49 2.448-1.418 3.244c-.875.807-2.026 1.297-3.323 1.297zm7.83-9.781c-.315 0-.612-.123-.833-.344-.221-.221-.344-.518-.344-.833 0-.315.123-.612.344-.833.221-.221.518-.344.833-.344s.612.123.833.344c.221.221.344.518.344.833 0 .315-.123.612-.344.833-.221.221-.518.344-.833.344zm0 0" />
-                  </svg>
-                </a>
-                <a href="#" className="text-gray-400 hover:text-white transition-colors">
-                  <span className="sr-only">TikTok</span>
-                  <svg className="w-6 h-6" fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25V2h-3.45v13.67a2.89 2.89 0 01-5.2 1.74 2.89 2.89 0 012.31-4.64 2.93 2.93 0 01.88.13V9.4a6.84 6.84 0 00-.88-.05A6.33 6.33 0 005 20.1a6.34 6.34 0 0010.86-4.43v-7a8.16 8.16 0 004.77 1.52v-3.4a4.85 4.85 0 01-1-.1z" />
-                  </svg>
-                </a>
-              </div>
-            </div>
-
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2">
-                <li>
-                  <a href="#features" className="text-gray-400 hover:text-white transition-colors">
-                    Features
-                  </a>
-                </li>
-                <li>
-                  <a href="#how-it-works" className="text-gray-400 hover:text-white transition-colors">
-                    How it Works
-                  </a>
-                </li>
-                <li>
-                  <a href="#testimonials" className="text-gray-400 hover:text-white transition-colors">
-                    Reviews
-                  </a>
-                </li>
-                <li>
-                  <a href="/about" className="text-gray-400 hover:text-white transition-colors">
-                    About
-                  </a>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="text-lg font-semibold mb-4">Support</h4>
-              <ul className="space-y-2">
-                <li>
-                  <a href="/contact" className="text-gray-400 hover:text-white transition-colors">
-                    Contact
-                  </a>
-                </li>
-                <li>
-                  <a href="/terms" className="text-gray-400 hover:text-white transition-colors">
-                    Terms of Service
-                  </a>
-                </li>
-                <li>
-                  <a href="/privacy" className="text-gray-400 hover:text-white transition-colors">
-                    Privacy Policy
-                  </a>
-                </li>
-                <li>
-                  <a href="/help" className="text-gray-400 hover:text-white transition-colors">
-                    Help Center
-                  </a>
-                </li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center">
-            <p className="text-gray-400">© 2024 LipaChap. All rights reserved. Made with ❤️ for Kenyan entrepreneurs.</p>
-          </div>
-        </div>
-      </footer>
+     
     </div>
   )
 }

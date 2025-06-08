@@ -5,7 +5,26 @@ import VendorSetup from "./components/VendorSetup"
 import CheckoutPage from "./components/CheckoutPage"
 import Dashboard from "./components/Dashboard"
 import LandingPage from "./components/LandingPage"
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom"
+import Header from "./components/Header"
+import Footer from "./components/Footer"
+import About from "./pages/About"
+import Contact from "./pages/Contact"
+import Help from "./pages/Help"
+import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from "react-router-dom"
+
+// Create a layout wrapper component
+function Layout({ children }) {
+  const location = useLocation()
+  const isCheckoutPage = location.pathname.includes("/checkout/")
+
+  return (
+    <div className="min-h-screen flex flex-col">
+      {!isCheckoutPage && <Header />}
+      <main className="flex-1">{children}</main>
+      {!isCheckoutPage && <Footer />}
+    </div>
+  )
+}
 
 function App() {
   const [vendors, setVendors] = useState({})
@@ -87,9 +106,12 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen">
+      <Layout>
         <Routes>
           <Route path="/" element={<LandingPage onCreateVendor={createVendor} />} />
+          <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/help" element={<Help />} />
           <Route
             path="/vendor-setup"
             element={<VendorSetup onCreateVendor={createVendor} onCreateCheckout={createCheckout} />}
@@ -104,7 +126,7 @@ function App() {
           />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
-      </div>
+      </Layout>
     </Router>
   )
 }
